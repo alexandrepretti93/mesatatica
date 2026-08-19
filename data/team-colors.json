@@ -1,0 +1,135 @@
+[
+  {
+    "names": ["Palmeiras"],
+    "style": "solid",
+    "primary": "#006437",
+    "secondary": "#006437",
+    "numberColor": "#FFFFFF"
+  },
+  {
+    "names": ["Flamengo"],
+    "style": "stripes-h",
+    "primary": "#D2202B",
+    "secondary": "#000000",
+    "numberColor": "#FFFFFF"
+  },
+  {
+    "names": ["Athletico", "Athletico-PR", "Athletico Paranaense", "Atletico Paranaense", "CAP"],
+    "style": "stripes-v",
+    "primary": "#E4002B",
+    "secondary": "#000000",
+    "numberColor": "#FFFFFF"
+  },
+  {
+    "names": ["Fluminense"],
+    "style": "stripes-v",
+    "primary": "#046A38",
+    "secondary": "#870A28",
+    "numberColor": "#FFFFFF"
+  },
+  {
+    "names": ["Cruzeiro"],
+    "style": "ring",
+    "primary": "#003DA5",
+    "secondary": "#FFFFFF",
+    "numberColor": "#FFFFFF"
+  },
+  {
+    "names": ["Bahia"],
+    "style": "halves",
+    "primary": "#006CB5",
+    "secondary": "#ED3237",
+    "numberColor": "#FFFFFF"
+  },
+  {
+    "names": ["Red Bull Bragantino", "Bragantino", "RB Bragantino"],
+    "style": "ring",
+    "primary": "#FFFFFF",
+    "secondary": "#D50032",
+    "numberColor": "#000000"
+  },
+  {
+    "names": ["Corinthians"],
+    "style": "ring",
+    "primary": "#FFFFFF",
+    "secondary": "#000000",
+    "numberColor": "#000000"
+  },
+  {
+    "names": ["Coritiba"],
+    "style": "solid",
+    "primary": "#0C6B3D",
+    "secondary": "#0C6B3D",
+    "numberColor": "#FFFFFF"
+  },
+  {
+    "names": ["Botafogo"],
+    "style": "ring",
+    "primary": "#FFFFFF",
+    "secondary": "#000000",
+    "numberColor": "#000000"
+  },
+  {
+    "names": ["Vitória", "Vitoria"],
+    "style": "stripes-v",
+    "primary": "#E4002B",
+    "secondary": "#000000",
+    "numberColor": "#FFFFFF"
+  },
+  {
+    "names": ["São Paulo", "Sao Paulo"],
+    "style": "ring",
+    "primary": "#FFFFFF",
+    "secondary": "#E4002B",
+    "numberColor": "#000000"
+  },
+  {
+    "names": ["Santos"],
+    "style": "ring",
+    "primary": "#FFFFFF",
+    "secondary": "#000000",
+    "numberColor": "#000000"
+  },
+  {
+    "names": ["Grêmio", "Gremio"],
+    "style": "stripes-v",
+    "primary": "#0D80BF",
+    "secondary": "#000000",
+    "numberColor": "#FFFFFF"
+  },
+  {
+    "names": ["Internacional"],
+    "style": "ring",
+    "primary": "#C8102E",
+    "secondary": "#FFFFFF",
+    "numberColor": "#FFFFFF"
+  },
+  {
+    "names": ["Mirassol"],
+    "style": "ring",
+    "primary": "#FFD100",
+    "secondary": "#1C8A43",
+    "numberColor": "#000000"
+  },
+  {
+    "names": ["Remo"],
+    "style": "ring",
+    "primary": "#041E42",
+    "secondary": "#FFFFFF",
+    "numberColor": "#FFFFFF"
+  },
+  {
+    "names": ["Vasco da Gama", "Vasco"],
+    "style": "ring",
+    "primary": "#FFFFFF",
+    "secondary": "#000000",
+    "numberColor": "#000000"
+  },
+  {
+    "names": ["Chapecoense"],
+    "style": "ring",
+    "primary": "#1C8A43",
+    "secondary": "#FFFFFF",
+    "numberColor": "#FFFFFF"
+  }
+]
