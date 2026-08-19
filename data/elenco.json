@@ -204,22 +204,5 @@
       "position": "Midfielder",
       "injured": false
     }
-  ],
-  "opponents": [
-    {
-      "id": 168,
-      "name": "Red Bull Bragantino",
-      "date": "2026-08-19T22:00:00+00:00"
-    },
-    {
-      "id": 161,
-      "name": "Internacional",
-      "date": "2026-08-22T21:30:00+00:00"
-    },
-    {
-      "id": 150,
-      "name": "Cruzeiro",
-      "date": "2026-08-26T00:00:00+00:00"
-    }
   ]
 }
