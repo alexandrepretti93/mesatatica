@@ -113,8 +113,11 @@ async function main() {
   }
 
   fs.mkdirSync("data", { recursive: true });
-  fs.writeFileSync("data/elenco.json", JSON.stringify({ player, opponents }, null, 2));
+  fs.writeFileSync("data/elenco.json", JSON.stringify({ player }, null, 2));
   console.log("Salvo em data/elenco.json");
+
+  fs.writeFileSync("data/opponents.json", JSON.stringify(opponents, null, 2));
+  console.log("Salvo em data/opponents.json");
 }
 
 main().catch((err) => {
