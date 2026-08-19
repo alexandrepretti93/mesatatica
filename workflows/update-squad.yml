@@ -1,0 +1,35 @@
+name: Atualizar elenco
+
+on:
+  schedule:
+    - cron: '0 9 * * *'   # todo dia às 09:00 UTC (~06:00 em Brasília)
+  workflow_dispatch:        # também dá pra rodar na mão, pela aba "Actions" do repositório
+
+permissions:
+  contents: write
+
+jobs:
+  update-squad:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Instalar dependências
+        run: npm install axios cheerio
+
+      - name: Rodar script de atualização (API bzzoiro)
+        run: node scripts/update-squad-api.js
+        env:
+          BZZOIRO_TOKEN: ${{ secrets.BZZOIRO_TOKEN }}
+
+      - name: Commitar e enviar se algo mudou
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/elenco.json
+          git diff --staged --quiet || git commit -m "Atualiza elenco automaticamente"
+          git push
