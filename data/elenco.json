@@ -1,0 +1,208 @@
+{
+  "player": [
+    {
+      "name": "Natanael",
+      "number": "2",
+      "position": "Defender",
+      "injured": false
+    },
+    {
+      "name": "Ruan",
+      "number": "4",
+      "position": "Defender",
+      "injured": false
+    },
+    {
+      "name": "L. Duarte",
+      "number": "5",
+      "position": "Defender",
+      "injured": true
+    },
+    {
+      "name": "R. Lodi",
+      "number": "6",
+      "position": "Defender",
+      "injured": false
+    },
+    {
+      "name": "Lyanco",
+      "number": "13",
+      "position": "Defender",
+      "injured": true
+    },
+    {
+      "name": "V. Hugo",
+      "number": "14",
+      "position": "Defender",
+      "injured": false
+    },
+    {
+      "name": "I. Román",
+      "number": "17",
+      "position": "Defender",
+      "injured": false
+    },
+    {
+      "name": "K. P. Resende",
+      "number": "36",
+      "position": "Defender",
+      "injured": false
+    },
+    {
+      "name": "V. F. C. Teixeira",
+      "number": "40",
+      "position": "Defender",
+      "injured": false
+    },
+    {
+      "name": "Rômulo",
+      "number": "47",
+      "position": "Defender",
+      "injured": false
+    },
+    {
+      "name": "M. Cassierra",
+      "number": "9",
+      "position": "Forward",
+      "injured": false
+    },
+    {
+      "name": "T. Borbas",
+      "number": "18",
+      "position": "Forward",
+      "injured": false
+    },
+    {
+      "name": "A. Minda",
+      "number": "27",
+      "position": "Forward",
+      "injured": false
+    },
+    {
+      "name": "C. C. Soares",
+      "number": "29",
+      "position": "Forward",
+      "injured": false
+    },
+    {
+      "name": "Dudu",
+      "number": "92",
+      "position": "Forward",
+      "injured": false
+    },
+    {
+      "name": "G. Delfim",
+      "number": "1",
+      "position": "Goalkeeper",
+      "injured": false
+    },
+    {
+      "name": "P. C. Rodrigues",
+      "number": "1",
+      "position": "Goalkeeper",
+      "injured": false
+    },
+    {
+      "name": "Everson",
+      "number": "22",
+      "position": "Goalkeeper",
+      "injured": false
+    },
+    {
+      "name": "R. Alves",
+      "number": "31",
+      "position": "Goalkeeper",
+      "injured": false
+    },
+    {
+      "name": "Alexsander",
+      "number": "5",
+      "position": "Midfielder",
+      "injured": false
+    },
+    {
+      "name": "Maycon",
+      "number": "8",
+      "position": "Midfielder",
+      "injured": false
+    },
+    {
+      "name": "G. Scarpa",
+      "number": "10",
+      "position": "Midfielder",
+      "injured": true
+    },
+    {
+      "name": "Bernard",
+      "number": "11",
+      "position": "Midfielder",
+      "injured": false
+    },
+    {
+      "name": "I. Gomes",
+      "number": "17",
+      "position": "Midfielder",
+      "injured": true
+    },
+    {
+      "name": "Reinier",
+      "number": "19",
+      "position": "Midfielder",
+      "injured": false
+    },
+    {
+      "name": "Patrick",
+      "number": "20",
+      "position": "Midfielder",
+      "injured": false
+    },
+    {
+      "name": "A. Franco",
+      "number": "21",
+      "position": "Midfielder",
+      "injured": false
+    },
+    {
+      "name": "Á. Preciado",
+      "number": "23",
+      "position": "Midfielder",
+      "injured": false
+    },
+    {
+      "name": "T. Pérez",
+      "number": "25",
+      "position": "Midfielder",
+      "injured": false
+    },
+    {
+      "name": "T. Cuello",
+      "number": "28",
+      "position": "Midfielder",
+      "injured": true
+    },
+    {
+      "name": "V. Hugo",
+      "number": "30",
+      "position": "Midfielder",
+      "injured": false
+    },
+    {
+      "name": "Índio",
+      "number": "38",
+      "position": "Midfielder",
+      "injured": false
+    },
+    {
+      "name": "M. Cissé",
+      "number": "39",
+      "position": "Midfielder",
+      "injured": false
+    },
+    {
+      "name": "Gutte",
+      "number": "48",
+      "position": "Midfielder",
+      "injured": false
+    }
+  ]
+}
