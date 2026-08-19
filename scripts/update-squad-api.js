@@ -1,14 +1,19 @@
 // scripts/update-squad-api.js
 //
-// Busca o elenco na API (sports.bzzoiro.com) e escreve data/elenco.json.
-// O token fica numa variável de ambiente (BZZOIRO_TOKEN) — configurada como
-// "secret" do repositório no GitHub, nunca aparece no código nem no navegador.
+// Busca o elenco e os próximos jogos na API (sports.bzzoiro.com) e escreve
+// data/elenco.json. O token fica numa variável de ambiente (BZZOIRO_TOKEN)
+// — configurada como "secret" do repositório no GitHub, nunca aparece no
+// código nem no navegador.
 //
-// Regras aplicadas (conforme combinado):
+// Regras aplicadas pro elenco (conforme combinado):
 // - date_of_birth nulo -> jogador ignorado (não entra no elenco.json)
 // - availability "injured" -> marcado como lesionado no app
 // - qualquer outro availability (available, suspended, etc.) -> sem marcação
 // - jersey_number -> número do jogador
+//
+// Pros próximos jogos: pega as partidas com status "notstarted", identifica
+// qual time é o adversário (o que não é o Atlético-MG) e monta uma lista
+// ordenada por data, que alimenta o seletor de "Adversário" no app.
 
 const fs = require("fs");
 
@@ -38,34 +43,34 @@ const POSITION_MAP = {
 // os formatos mais prováveis automaticamente.
 function extractList(raw) {
   if (Array.isArray(raw)) return raw;
-  const candidates = ["results", "data", "squad", "players", "player"];
+  const candidates = ["results", "data", "squad", "fixtures", "players", "player"];
   for (const key of candidates) {
     if (raw && Array.isArray(raw[key])) return raw[key];
   }
   return null;
 }
 
-async function main() {
-  const res = await fetch(`https://sports.bzzoiro.com/api/v2/teams/${TEAM_ID}/squad/`, {
+async function fetchApi(path) {
+  const res = await fetch(`https://sports.bzzoiro.com/api/v2/${path}`, {
     headers: { Authorization: `Token ${TOKEN}` },
   });
   if (!res.ok) {
     const body = await res.text().catch(() => "");
     throw new Error(
-      `API respondeu ${res.status} ${res.statusText}` + (body ? ` — ${body.slice(0, 300)}` : "")
+      `API (${path}) respondeu ${res.status} ${res.statusText}` + (body ? ` — ${body.slice(0, 300)}` : "")
     );
   }
-  const raw = await res.json();
-  const list = extractList(raw);
+  return res.json();
+}
 
+async function getSquad() {
+  const raw = await fetchApi(`teams/${TEAM_ID}/squad/`);
+  const list = extractList(raw);
   if (!list) {
     const keys = raw && typeof raw === "object" ? Object.keys(raw).join(", ") : typeof raw;
-    throw new Error(
-      `Não achei a lista de jogadores na resposta. Formato recebido tem as chaves: [${keys}]`
-    );
+    throw new Error(`Não achei a lista de jogadores na resposta. Chaves recebidas: [${keys}]`);
   }
-
-  const player = list
+  return list
     .filter((p) => !!p.date_of_birth) // ignora quem não tem data de nascimento
     .map((p) => ({
       name: p.short_name || p.name,
@@ -73,11 +78,42 @@ async function main() {
       position: POSITION_MAP[p.position] || p.position,
       injured: p.availability === "injured",
     }));
+}
 
-  console.log(`Elenco: ${player.length} jogadores (de ${list.length} recebidos da API).`);
+async function getUpcomingOpponents() {
+  const raw = await fetchApi(`teams/${TEAM_ID}/fixtures/`);
+  const list = extractList(raw);
+  if (!list) return [];
+
+  return list
+    .filter((f) => f.status === "notstarted")
+    .map((f) => {
+      const isHome = f.home_team_id === TEAM_ID;
+      return {
+        id: isHome ? f.away_team_id : f.home_team_id,
+        name: isHome ? f.away_team : f.home_team,
+        date: f.event_date,
+      };
+    })
+    .filter((o) => o.name)
+    .sort((a, b) => new Date(a.date) - new Date(b.date));
+}
+
+async function main() {
+  const player = await getSquad();
+  console.log(`Elenco: ${player.length} jogadores.`);
+
+  let opponents = [];
+  try {
+    opponents = await getUpcomingOpponents();
+    console.log(`Próximos jogos: ${opponents.length} adversários encontrados.`);
+    opponents.forEach((o) => console.log(`  - ${o.name} (${o.date})`));
+  } catch (err) {
+    console.log("Não consegui buscar os próximos jogos (seguindo só com o elenco):", err.message);
+  }
 
   fs.mkdirSync("data", { recursive: true });
-  fs.writeFileSync("data/elenco.json", JSON.stringify({ player }, null, 2));
+  fs.writeFileSync("data/elenco.json", JSON.stringify({ player, opponents }, null, 2));
   console.log("Salvo em data/elenco.json");
 }
 
