@@ -10,10 +10,10 @@
 // - qualquer outro availability (available, suspended, etc.) -> sem marcação
 // - jersey_number -> número do jogador
 
-import fs from "fs";
+const fs = require("fs");
 
 const TEAM_ID = 155; // Atlético-MG
-const TOKEN = process.env.BZZOIRO_TOKEN;
+const TOKEN = (process.env.BZZOIRO_TOKEN || "").trim();
 
 if (!TOKEN) {
   console.error("Faltou a variável de ambiente BZZOIRO_TOKEN (configure como secret no GitHub).");
@@ -32,16 +32,40 @@ const POSITION_MAP = {
   FW: "Forward",
 };
 
+// A API pode devolver o array direto, ou (mais comum, típico de Django REST
+// Framework, que é o que o esquema "Authorization: Token" sugere) um objeto
+// com paginação tipo {count, next, previous, results:[...]}. Tenta reconhecer
+// os formatos mais prováveis automaticamente.
+function extractList(raw) {
+  if (Array.isArray(raw)) return raw;
+  const candidates = ["results", "data", "squad", "players", "player"];
+  for (const key of candidates) {
+    if (raw && Array.isArray(raw[key])) return raw[key];
+  }
+  return null;
+}
+
 async function main() {
   const res = await fetch(`https://sports.bzzoiro.com/api/v2/teams/${TEAM_ID}/squad/`, {
     headers: { Authorization: `Token ${TOKEN}` },
   });
   if (!res.ok) {
-    throw new Error(`API respondeu ${res.status} ${res.statusText}`);
+    const body = await res.text().catch(() => "");
+    throw new Error(
+      `API respondeu ${res.status} ${res.statusText}` + (body ? ` — ${body.slice(0, 300)}` : "")
+    );
   }
   const raw = await res.json();
+  const list = extractList(raw);
 
-  const player = raw
+  if (!list) {
+    const keys = raw && typeof raw === "object" ? Object.keys(raw).join(", ") : typeof raw;
+    throw new Error(
+      `Não achei a lista de jogadores na resposta. Formato recebido tem as chaves: [${keys}]`
+    );
+  }
+
+  const player = list
     .filter((p) => !!p.date_of_birth) // ignora quem não tem data de nascimento
     .map((p) => ({
       name: p.short_name || p.name,
@@ -50,7 +74,7 @@ async function main() {
       injured: p.availability === "injured",
     }));
 
-  console.log(`Elenco: ${player.length} jogadores (de ${raw.length} recebidos da API).`);
+  console.log(`Elenco: ${player.length} jogadores (de ${list.length} recebidos da API).`);
 
   fs.mkdirSync("data", { recursive: true });
   fs.writeFileSync("data/elenco.json", JSON.stringify({ player }, null, 2));
