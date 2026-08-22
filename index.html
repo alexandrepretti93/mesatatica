@@ -31,20 +31,20 @@ button,input,select{font-family:inherit;}
 @keyframes spin{to{transform:rotate(360deg);}}
 
 /* ---------- toolbar ---------- */
-#toolbar{flex:0 0 auto;z-index:50;background:var(--toolbar-yellow);border-bottom:3px solid var(--ink);padding:8px 18px;}
+#toolbar{flex:0 0 auto;z-index:50;background:var(--toolbar-yellow);border-bottom:3px solid var(--ink);padding:5px 16px;}
 .tb-row{display:flex;align-items:center;gap:16px;flex-wrap:wrap;}
 .tb-title{display:flex;align-items:center;gap:10px;margin-right:8px;}
-.brand-logo{height:44px;width:auto;display:block;flex:0 0 auto;}
-.tb-title h1{margin:0;font-family:var(--font-d);font-weight:700;font-style:italic;text-transform:uppercase;letter-spacing:.03em;font-size:1.4rem;color:var(--ink);}
-.tb-group{display:flex;align-items:center;gap:8px;background:var(--ink-3);border:1px solid var(--line);border-radius:10px;padding:6px 10px;}
+.brand-logo{height:30px;width:auto;display:block;flex:0 0 auto;}
+.tb-title h1{margin:0;font-family:var(--font-d);font-weight:700;font-style:italic;text-transform:uppercase;letter-spacing:.03em;font-size:1.05rem;color:var(--ink);}
+.tb-group{display:flex;align-items:center;gap:8px;background:var(--ink-3);border:1px solid var(--line);border-radius:10px;padding:3px 8px;}
 .tb-group label{display:flex;flex-direction:column;align-items:center;font-size:.62rem;color:var(--paper-dim);text-transform:uppercase;letter-spacing:.05em;gap:3px;}
-.swatch{width:26px;height:26px;border-radius:50%;border:2px solid var(--paper-dim);padding:0;background:none;cursor:pointer;}
+.swatch{width:20px;height:20px;border-radius:50%;border:2px solid var(--paper-dim);padding:0;background:none;cursor:pointer;}
 .tb-group select{background:var(--ink);color:var(--paper);border:1px solid var(--line);border-radius:6px;padding:4px 6px;font-size:.75rem;}
 .tb-group input[type=range]{width:90px;accent-color:var(--gold);}
 .tb-group .btn{background:var(--toolbar-yellow);border-color:var(--toolbar-yellow);color:var(--ink);}
 .tb-group .btn:hover{background:var(--toolbar-yellow-2);border-color:var(--toolbar-yellow-2);}
 .spacer{flex:1;}
-.btn{font-weight:600;font-size:.82rem;padding:9px 14px;border-radius:999px;border:1px solid var(--ink);background:transparent;color:var(--ink);cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:.15s;white-space:nowrap;}
+.btn{font-weight:600;font-size:.74rem;padding:6px 11px;border-radius:999px;border:1px solid var(--ink);background:transparent;color:var(--ink);cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:.15s;white-space:nowrap;}
 .btn:hover{background:rgba(0,0,0,.08);}
 .btn-primary{background:var(--ink);border-color:var(--ink);color:var(--toolbar-yellow);}
 .btn-primary:hover{background:#000;border-color:#000;color:var(--toolbar-yellow);}
@@ -55,9 +55,16 @@ button,input,select{font-family:inherit;}
 #save-status{font-size:.68rem;color:rgba(13,15,12,.7);min-width:70px;text-align:right;}
 
 /* ---------- layout ---------- */
-#main{flex:1 1 auto;display:flex;gap:16px;padding:12px 16px;min-height:0;overflow:hidden;}
-#pitch-col{flex:1 1 auto;min-width:0;min-height:0;display:flex;flex-direction:column;gap:8px;}
-#field-wrap{flex:1 1 auto;min-height:0;display:flex;align-items:center;justify-content:center;position:relative;}
+#main{flex:1 1 auto;display:flex;gap:8px;padding:4px 6px;min-height:0;overflow:hidden;}
+#pitch-col{flex:1 1 auto;min-width:0;min-height:0;max-width:calc(100% - 368px);display:flex;flex-direction:column;gap:4px;}
+#field-area-row{flex:1 1 auto;min-height:0;display:flex;gap:8px;align-items:stretch;}
+#side-column{flex:0 0 470px;min-width:0;min-height:0;display:flex;flex-direction:column;gap:6px;}
+#camera-slot{flex:0 0 270px;border:2px dashed var(--line);border-radius:12px;background:rgba(255,255,255,.02);}
+#status-boxes{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;gap:6px;}
+.status-box{flex:1 1 0;min-height:0;display:flex;flex-direction:column;background:var(--ink-2);border:2px dashed var(--line);border-radius:12px;padding:6px 8px;}
+.status-box-head{flex:0 0 auto;font-family:var(--font-d);font-size:.66rem;text-transform:uppercase;letter-spacing:.06em;color:var(--gold);margin-bottom:4px;}
+.status-box-list{flex:1 1 auto;min-height:0;display:flex;flex-wrap:wrap;gap:6px;align-content:flex-start;overflow-y:auto;}
+#field-wrap{flex:1 1 auto;align-self:stretch;min-height:0;display:flex;align-items:center;justify-content:center;position:relative;}
 
 /* ---------- field ---------- */
 #field-head{display:flex;align-items:center;justify-content:space-between;flex:0 0 auto;}
@@ -75,14 +82,14 @@ button,input,select{font-family:inherit;}
 #field .boxs.right{right:0;border-right:none;}
 
 /* ---------- bench ---------- */
-#bench-panel{flex:0 0 auto;display:flex;flex-direction:column;gap:6px;max-height:44%;}
+#bench-panel{flex:0 0 auto;display:flex;flex-direction:column;gap:4px;max-height:28%;}
 .panel-head{display:flex;align-items:center;gap:10px;flex:0 0 auto;}
 .panel-head h2{font-family:var(--font-d);text-transform:uppercase;letter-spacing:.04em;font-size:1rem;margin:0;}
 #bench-list{display:flex;flex-wrap:nowrap;overflow-x:auto;overflow-y:auto;gap:0;padding:8px 10px;background:var(--ink-2);border:2px dashed var(--line);border-radius:12px;flex:1 1 auto;min-height:0;}
 .bench-group{display:flex;flex-direction:column;height:100%;padding:0 12px;border-right:1px dashed var(--line);flex:0 0 auto;}
 .bench-group:last-child{border-right:none;}
 .glabel{flex:0 0 auto;font-family:var(--font-d);font-size:.68rem;letter-spacing:.08em;text-transform:uppercase;color:var(--gold);white-space:nowrap;margin-bottom:6px;}
-.grow{flex:1 1 auto;min-height:0;display:grid;grid-auto-flow:column;grid-auto-columns:92px;justify-items:center;align-content:start;gap:6px 6px;}
+.grow{flex:1 1 auto;min-height:0;display:grid;grid-auto-flow:column;grid-auto-columns:70px;justify-items:center;align-content:start;gap:4px 5px;}
 
 /* ---------- director panel ---------- */
 #director-panel{width:360px;flex:0 0 360px;min-height:0;background:var(--ink-2);border:1px solid var(--line);border-radius:12px;padding:14px;display:flex;flex-direction:column;}
@@ -114,7 +121,8 @@ button,input,select{font-family:inherit;}
 .injury-badge::before,.injury-badge::after{content:'';position:absolute;background:#fff;top:50%;left:50%;transform:translate(-50%,-50%);border-radius:1px;}
 .injury-badge::before{width:56%;height:16%;}
 .injury-badge::after{width:16%;height:56%;}
-.label{font-size:max(11px, calc(var(--size,64px)*.19));max-width:max(92px, calc(var(--size,64px)*1.9));text-align:center;color:var(--chalk);background:rgba(10,12,9,.55);padding:1px 7px;border-radius:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600;letter-spacing:.01em;}
+.suspension-badge{position:absolute;top:-2px;left:-2px;width:max(9px, calc(var(--size,64px)*.19));height:max(12px, calc(var(--size,64px)*.26));background:rgba(209,88,74,.94);border-radius:2px;box-shadow:0 1px 3px rgba(0,0,0,.55),0 0 0 1.5px rgba(13,15,12,.6);z-index:4;pointer-events:none;}
+.label{font-size:max(10px, calc(var(--size,64px)*.19));max-width:max(68px, calc(var(--size,64px)*1.9));text-align:center;color:var(--chalk);background:rgba(10,12,9,.55);padding:1px 6px;border-radius:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600;letter-spacing:.01em;}
 
 /* chip mode (director zones) */
 .jersey-wrap.chip{flex-direction:row;align-items:center;gap:4px;width:auto;min-width:0;max-width:100%;position:relative;background:var(--ink-3);border:1px solid var(--line);border-radius:999px;padding:2px 5px 2px 2px;}
@@ -137,8 +145,14 @@ button,input,select{font-family:inherit;}
 .color-row label{margin:0;}
 .color-row input[type=color]{width:40px;height:40px;border-radius:50%;border:2px solid #cfc6ac;padding:0;cursor:pointer;background:none;}
 #f-scale{width:100%;accent-color:var(--gold-2);}
-.check-row{display:flex;align-items:center;gap:8px;text-transform:none;font-size:.88rem;color:var(--ink);margin-top:14px;cursor:pointer;}
-.check-row input{width:16px;height:16px;accent-color:var(--danger);cursor:pointer;}
+.check-row{display:flex;align-items:center;gap:7px;text-transform:none;font-size:.88rem;color:var(--ink);margin-top:12px;cursor:pointer;}
+.check-row input{width:16px;height:16px;margin:0;accent-color:var(--danger);cursor:pointer;flex:0 0 auto;}
+.mini-badge{flex:0 0 auto;position:relative;}
+.mini-badge-injury{width:14px;height:14px;border-radius:50%;background:var(--danger);}
+.mini-badge-injury::before,.mini-badge-injury::after{content:'';position:absolute;background:#fff;top:50%;left:50%;transform:translate(-50%,-50%);border-radius:1px;}
+.mini-badge-injury::before{width:56%;height:16%;}
+.mini-badge-injury::after{width:16%;height:56%;}
+.mini-badge-suspended{width:11px;height:15px;background:var(--danger);border-radius:2px;}
 .modal-actions{display:flex;gap:8px;margin-top:18px;flex-wrap:wrap;}
 .modal-actions .btn{border-color:#cfc6ac;color:var(--ink);}
 .modal-actions .btn-primary{margin-left:auto;background:var(--ink);border-color:var(--ink);color:var(--toolbar-yellow);}
@@ -178,7 +192,9 @@ button,input,select{font-family:inherit;}
   html,body{overflow:auto;}
   #app{height:auto;min-height:100vh;}
   #main{flex-direction:column;padding:14px;overflow:visible;}
-  #field-wrap{min-height:280px;}
+  #field-area-row{flex-direction:column;}
+  #camera-slot{width:100%;height:140px;}
+  #field-wrap{min-height:280px;justify-content:center;}
   #director-panel{width:100%;flex:none;}
   .tb-row{gap:10px;}
 }
@@ -233,15 +249,30 @@ button,input,select{font-family:inherit;}
         <h2>Campo</h2>
         <span class="count-badge">No campo: <span id="field-count">0</span></span>
       </div>
-      <div id="field-wrap">
-        <div id="field">
-          <div class="mid-line"></div>
-          <div class="circle"></div>
-          <div class="center-dot"></div>
-          <div class="box left"></div>
-          <div class="box right"></div>
-          <div class="boxs left"></div>
-          <div class="boxs right"></div>
+      <div id="field-area-row">
+        <div id="side-column">
+          <div id="camera-slot" title="Espaço reservado pra câmera da live"></div>
+          <div id="status-boxes">
+            <div class="status-box">
+              <div class="status-box-head">🟥 Suspensos</div>
+              <div id="suspended-list" class="status-box-list zone-drop" data-zone="bench"></div>
+            </div>
+            <div class="status-box">
+              <div class="status-box-head">🚑 Lesionados</div>
+              <div id="injured-list" class="status-box-list zone-drop" data-zone="bench"></div>
+            </div>
+          </div>
+        </div>
+        <div id="field-wrap">
+          <div id="field">
+            <div class="mid-line"></div>
+            <div class="circle"></div>
+            <div class="center-dot"></div>
+            <div class="box left"></div>
+            <div class="box right"></div>
+            <div class="boxs left"></div>
+            <div class="boxs right"></div>
+          </div>
         </div>
       </div>
 
@@ -319,7 +350,8 @@ button,input,select{font-family:inherit;}
       <label>Tamanho do botão (só vale em campo)</label>
       <input type="range" id="f-scale" min="0.6" max="1.8" step="0.05" value="1">
 
-      <label class="check-row"><input type="checkbox" id="f-injured"> 🩹 Lesionado</label>
+      <label class="check-row"><input type="checkbox" id="f-injured"><span class="mini-badge mini-badge-injury"></span> Lesionado</label>
+      <label class="check-row"><input type="checkbox" id="f-suspended"><span class="mini-badge mini-badge-suspended"></span> Suspenso</label>
 
       <div class="modal-actions">
         <button type="button" class="btn btn-danger hidden" id="btn-delete">Excluir</button>
@@ -375,7 +407,7 @@ button,input,select{font-family:inherit;}
 
 /* ============ constants ============ */
 const BASE_SIZE = 62;
-const BENCH_SIZE = 34;
+const BENCH_SIZE = 26;
 const ZONE_SIZE = 30;
 const POS_ORDER = ['GOL','ZAG','LAT','MEI','ATA'];
 const POS_LABELS = {GOL:'Goleiros',ZAG:'Zagueiros',LAT:'Laterais',MEI:'Meias',ATA:'Atacantes'};
@@ -495,6 +527,7 @@ function buildDefaultSquad(){
       primary:DEFAULT_KIT.primary, secondary:DEFAULT_KIT.secondary, numberColor:DEFAULT_KIT.numberColor, style:DEFAULT_KIT.style,
       scale:1,
       injured: !!item.injured,
+      suspended: !!item.suspended,
       location: idx>-1 ? 'field' : 'bench',
       x: idx>-1 ? FORMATION[idx].x : 50,
       y: idx>-1 ? FORMATION[idx].y : 50,
@@ -612,7 +645,7 @@ function sizeBench(){
   if(!list) return;
   const availH = list.clientHeight - 16; // padding interno
   const labelH = 18; // altura aproximada do rótulo da posição (glabel)
-  const itemBlock = BENCH_SIZE + 28; // botão + rótulo do jogador + gap vertical
+  const itemBlock = BENCH_SIZE + 22; // botão + rótulo do jogador + gap vertical
   const rows = Math.max(2, Math.floor((availH - labelH) / itemBlock));
   if(rows !== benchRows){
     benchRows = rows;
@@ -737,13 +770,14 @@ function buildJerseyNode(p, opts){
 
   const labelText = escapeHtml(p.name);
   const injuryBadge = p.injured ? '<span class="injury-badge" title="Lesionado"></span>' : '';
+  const suspensionBadge = p.suspended ? '<span class="suspension-badge" title="Suspenso"></span>' : '';
 
   wrap.innerHTML =
     '<div class="jersey-frame">'+
       '<div class="jersey" data-style="'+p.style+'" style="--primary:'+p.primary+';--secondary:'+p.secondary+';--numcolor:'+p.numberColor+';">'+
         '<span class="num">'+p.number+'</span>'+
       '</div>'+
-      injuryBadge +
+      injuryBadge + suspensionBadge +
     '</div>'+
     '<div class="label">'+labelText+'</div>';
 
@@ -820,7 +854,7 @@ function renderOpponents(){
 function renderBench(){
   const benchEl = document.getElementById('bench-list');
   benchEl.innerHTML = '';
-  const benchPlayers = players.filter(p=>p.location==='bench' && !p.target);
+  const benchPlayers = players.filter(p=>p.location==='bench' && !p.target && !p.suspended && !p.injured);
   document.getElementById('bench-count').textContent = benchPlayers.length;
   POS_ORDER.forEach(pos=>{
     const group = benchPlayers.filter(p=>p.pos===pos).sort((a,b)=>a.number-b.number);
@@ -840,7 +874,7 @@ function renderBench(){
   });
 
   // coluna extra: reforços/especulações que estão atualmente no banco (coexistem com o Modo Diretor)
-  const speculative = players.filter(p=>p.location==='bench' && p.target).sort((a,b)=>a.number-b.number);
+  const speculative = players.filter(p=>p.location==='bench' && p.target && !p.suspended && !p.injured).sort((a,b)=>a.number-b.number);
   if(speculative.length){
     const gEl = document.createElement('div');
     gEl.className = 'bench-group bench-group-spec';
@@ -866,9 +900,26 @@ function renderZones(){
   targetEl.innerHTML = '';
   players.filter(p=>p.target).sort((a,b)=>a.number-b.number).forEach(p=> targetEl.appendChild(buildJerseyNode(p, {zoneKind:'target'})));
 }
+// preenche os retângulos de Suspensos e Lesionados automaticamente — só olha
+// pra quem está no banco (quem está em campo continua lá normalmente, só que
+// com o selo visível). Se o jogador tiver os dois estados, prioriza suspenso.
+function renderStatusBoxes(){
+  const suspendedEl = document.getElementById('suspended-list');
+  const injuredEl = document.getElementById('injured-list');
+  suspendedEl.innerHTML = '';
+  injuredEl.innerHTML = '';
+  players.filter(p=>p.location==='bench' && p.suspended)
+    .sort((a,b)=>a.number-b.number)
+    .forEach(p=> suspendedEl.appendChild(buildJerseyNode(p)));
+  players.filter(p=>p.location==='bench' && p.injured && !p.suspended)
+    .sort((a,b)=>a.number-b.number)
+    .forEach(p=> injuredEl.appendChild(buildJerseyNode(p)));
+}
+
 function renderAll(){
   renderField();
   renderBench();
+  renderStatusBoxes();
   renderZones();
   renderOpponents();
 }
@@ -1022,6 +1073,16 @@ function updatePreview(){
   } else if(existingBadge){
     existingBadge.remove();
   }
+  const existingSuspBadge = previewFrameEl.querySelector('.suspension-badge');
+  if(document.getElementById('f-suspended').checked){
+    if(!existingSuspBadge){
+      const b = document.createElement('span');
+      b.className = 'suspension-badge';
+      previewFrameEl.appendChild(b);
+    }
+  } else if(existingSuspBadge){
+    existingSuspBadge.remove();
+  }
 }
 form.addEventListener('input', updatePreview);
 
@@ -1042,6 +1103,7 @@ function openAddModal(isTarget){
   document.getElementById('f-style').value = globalKit.style;
   document.getElementById('f-scale').value = 1;
   document.getElementById('f-injured').checked = false;
+  document.getElementById('f-suspended').checked = false;
   updatePreview();
   overlay.classList.remove('hidden');
   document.getElementById('f-name').focus();
@@ -1062,6 +1124,7 @@ function openEditModal(id){
   document.getElementById('f-style').value = p.style;
   document.getElementById('f-scale').value = p.scale || 1;
   document.getElementById('f-injured').checked = !!p.injured;
+  document.getElementById('f-suspended').checked = !!p.suspended;
   updatePreview();
   overlay.classList.remove('hidden');
 }
@@ -1083,6 +1146,7 @@ form.addEventListener('submit', (e)=>{
     style: document.getElementById('f-style').value,
     scale: parseFloat(document.getElementById('f-scale').value) || 1,
     injured: document.getElementById('f-injured').checked,
+    suspended: document.getElementById('f-suspended').checked,
   };
   if(editingId){
     const p = players.find(pl=>pl.id===editingId);
@@ -1165,6 +1229,7 @@ const btnDirector = document.getElementById('btn-director');
 btnDirector.addEventListener('click', ()=>{
   directorPanel.classList.toggle('hidden');
   btnDirector.classList.toggle('active', !directorPanel.classList.contains('hidden'));
+  requestAnimationFrame(sizeField);
 });
 
 /* ============ adversário ============ */
