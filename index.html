@@ -380,7 +380,7 @@ button,input,select{font-family:inherit;}
 
 <div id="opponent-overlay" class="hidden">
   <div id="opponent-modal">
-    <h2>🆚 Escolher adversário <span class="wip-tag">(em construção)</span></h2>
+    <h2>🆚 Escolher adversário</h2>
     <div class="opponent-team-list">
     </div>
     <div class="modal-actions">
@@ -411,7 +411,7 @@ const BENCH_SIZE = 26;
 const ZONE_SIZE = 30;
 const POS_ORDER = ['GOL','ZAG','LAT','MEI','ATA'];
 const POS_LABELS = {GOL:'Goleiros',ZAG:'Zagueiros',LAT:'Laterais',MEI:'Meias',ATA:'Atacantes'};
-const DEFAULT_KIT = {primary:'#000000', secondary:'#ffffff', numberColor:'#ffd400', style:'stripes-v', sizeMult:1};
+const DEFAULT_KIT = {primary:'#000000', secondary:'#000000', numberColor:'#ffd400', style:'solid', sizeMult:1};
 
 const FORMATION = [
   {pos:'GOL', x:8,  y:52},
@@ -489,6 +489,13 @@ function findTeamColors(name){
     numberColor: match.numberColor || DEFAULT_OPPONENT_COLORS.numberColor,
     style: match.style || DEFAULT_OPPONENT_COLORS.style,
   };
+}
+// nome de exibição no seletor de Adversário — só o texto muda, cor/escudo/id
+// continuam batendo pelo nome real (ex: Cruzeiro aparece como "Rival")
+const OPPONENT_DISPLAY_OVERRIDES = { 'cruzeiro': 'Rival' };
+function opponentDisplayName(name){
+  const key = String(name||'').trim().toLowerCase();
+  return OPPONENT_DISPLAY_OVERRIDES[key] || name;
 }
 const OPPONENTS = {
   // sem times curados por enquanto (sem escudo/cor) — a lista fica só com
@@ -832,7 +839,7 @@ function buildOpponentNode(p){
   const wrap = document.createElement('div');
   wrap.className = 'jersey-wrap on-field opponent';
   wrap.dataset.id = p.id;
-  const finalSize = BASE_SIZE * (globalKit.sizeMult||1) * 0.66;
+  const finalSize = BASE_SIZE * (globalKit.sizeMult||1) * 0.58;
   wrap.style.setProperty('--size', finalSize+'px');
   wrap.style.left = p.x+'%';
   wrap.style.top = p.y+'%';
@@ -1209,9 +1216,9 @@ document.getElementById('btn-apply-all').addEventListener('click', ()=>{
 
 document.getElementById('btn-galo-colors').addEventListener('click', ()=>{
   globalKit.primary = '#000000';
-  globalKit.secondary = '#ffffff';
+  globalKit.secondary = '#000000';
   globalKit.numberColor = '#ffd400';
-  globalKit.style = 'stripes-v';
+  globalKit.style = 'solid';
   syncKitInputsUI();
   players.forEach(p=>{
     p.primary = globalKit.primary;
@@ -1267,7 +1274,7 @@ function activateOpponent(key){
 // pode ser editado depois com um clique, igual qualquer outro adversário.
 function activateDynamicOpponent(name, teamId){
   opponentTeamKey = 'dynamic-' + teamId;
-  opponentLabel = name;
+  opponentLabel = opponentDisplayName(name);
   opponentColors = findTeamColors(name);
   opponentPlayers = OPPONENT_FORMATION.map((slot,i)=>({id:'opp'+i, name:'Jogador '+(i+1), x:slot.x, y:slot.y}));
   btnOpponent.textContent = '🆚 ' + opponentLabel;
@@ -1334,7 +1341,7 @@ function renderDynamicOpponentButtons(){
         '<div class="jersey-frame" style="--size:34px">'+
           '<div class="jersey" data-style="'+c.style+'" style="--primary:'+c.primary+';--secondary:'+c.secondary+';--numcolor:'+c.numberColor+';"></div>'+
         '</div>'+
-        '<span>'+escapeHtml(o.name)+(dateLabel ? ' — '+dateLabel : '')+'</span>';
+        '<span>'+escapeHtml(opponentDisplayName(o.name))+(dateLabel ? ' — '+dateLabel : '')+'</span>';
       btn.addEventListener('click', ()=>{
         activateDynamicOpponent(o.name, o.id);
         closeOpponentModal();
