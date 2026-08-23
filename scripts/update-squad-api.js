@@ -1,126 +1,1615 @@
-// scripts/update-squad-api.js
-//
-// Busca o elenco e os próximos jogos na API (sports.bzzoiro.com) e escreve
-// data/elenco.json. O token fica numa variável de ambiente (BZZOIRO_TOKEN)
-// — configurada como "secret" do repositório no GitHub, nunca aparece no
-// código nem no navegador.
-//
-// Regras aplicadas pro elenco (conforme combinado):
-// - date_of_birth nulo -> jogador ignorado (não entra no elenco.json)
-// - availability "injured" -> marcado como lesionado no app
-// - qualquer outro availability (available, suspended, etc.) -> sem marcação
-// - jersey_number -> número do jogador
-//
-// Pros próximos jogos: pega as partidas com status "notstarted", identifica
-// qual time é o adversário (o que não é o Atlético-MG) e monta uma lista
-// ordenada por data, que alimenta o seletor de "Adversário" no app.
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<title>Galo Lineup Builder</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#0d0f0c; --ink-2:#171913; --ink-3:#20231b;
+  --paper:#f4eee0; --paper-dim:#c9c2ac;
+  --pitch-a:#1e6b3d; --pitch-b:#226f41;
+  --chalk:#f4f7ef;
+  --gold:#f2b23a; --gold-2:#c98a1a;
+  --toolbar-yellow:#ffc100; --toolbar-yellow-2:#e6ac00;
+  --danger:#d1584a; --danger-2:#9c372c;
+  --line:#34382c;
+  --font-d:'Oswald',sans-serif; --font-b:'Inter',sans-serif;
+  --field-bg:#20231b;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;height:100%;overflow:hidden;background:var(--ink);color:var(--paper);font-family:var(--font-b);}
+.hidden{display:none!important;}
+#app{height:100vh;display:flex;flex-direction:column;overflow:hidden;}
+button,input,select{font-family:inherit;}
 
-const fs = require("fs");
+/* ---------- loading ---------- */
+#loading{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:10px;background:var(--ink);color:var(--paper-dim);font-family:var(--font-d);letter-spacing:.05em;text-transform:uppercase;}
+.spinner{width:34px;height:34px;border:3px solid var(--line);border-top-color:var(--gold);border-radius:50%;animation:spin 0.8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
 
-const TEAM_ID = 155; // Atlético-MG
-const TOKEN = (process.env.BZZOIRO_TOKEN || "").trim();
+/* ---------- toolbar ---------- */
+#toolbar{flex:0 0 auto;z-index:50;background:var(--toolbar-yellow);border-bottom:3px solid var(--ink);padding:5px 16px;}
+.tb-row{display:flex;align-items:center;gap:16px;flex-wrap:wrap;}
+.tb-title{display:flex;align-items:center;gap:10px;margin-right:8px;}
+.brand-logo{height:30px;width:auto;display:block;flex:0 0 auto;}
+.tb-title h1{margin:0;font-family:var(--font-d);font-weight:700;font-style:italic;text-transform:uppercase;letter-spacing:.03em;font-size:1.05rem;color:var(--ink);}
+.tb-group{display:flex;align-items:center;gap:8px;background:var(--ink-3);border:1px solid var(--line);border-radius:10px;padding:3px 8px;}
+.tb-group label{display:flex;flex-direction:column;align-items:center;font-size:.62rem;color:var(--paper-dim);text-transform:uppercase;letter-spacing:.05em;gap:3px;}
+.swatch{width:20px;height:20px;border-radius:50%;border:2px solid var(--paper-dim);padding:0;background:none;cursor:pointer;}
+.tb-group select{background:var(--ink);color:var(--paper);border:1px solid var(--line);border-radius:6px;padding:4px 6px;font-size:.75rem;}
+.tb-group input[type=range]{width:90px;accent-color:var(--gold);}
+.tb-group .btn{background:var(--toolbar-yellow);border-color:var(--toolbar-yellow);color:var(--ink);}
+.tb-group .btn:hover{background:var(--toolbar-yellow-2);border-color:var(--toolbar-yellow-2);}
+.spacer{flex:1;}
+.btn{font-weight:600;font-size:.74rem;padding:6px 11px;border-radius:999px;border:1px solid var(--ink);background:transparent;color:var(--ink);cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:.15s;white-space:nowrap;}
+.btn:hover{background:rgba(0,0,0,.08);}
+.btn-primary{background:var(--ink);border-color:var(--ink);color:var(--toolbar-yellow);}
+.btn-primary:hover{background:#000;border-color:#000;color:var(--toolbar-yellow);}
+.btn-ghost{border-color:rgba(13,15,12,.4);color:var(--ink);padding:8px 10px;}
+.btn.active{background:var(--ink);color:var(--toolbar-yellow);border-color:var(--ink);}
+.btn:disabled{opacity:.4;cursor:not-allowed;}
+.hint{font-size:.72rem;color:rgba(13,15,12,.7);margin-top:6px;}
+#save-status{font-size:.68rem;color:rgba(13,15,12,.7);min-width:70px;text-align:right;}
 
-if (!TOKEN) {
-  console.error("Faltou a variável de ambiente BZZOIRO_TOKEN (configure como secret no GitHub).");
-  process.exit(1);
+/* ---------- layout ---------- */
+#main{flex:1 1 auto;display:flex;gap:8px;padding:4px 6px;min-height:0;overflow:hidden;}
+#pitch-col{flex:1 1 auto;min-width:0;min-height:0;max-width:calc(100% - 368px);display:flex;flex-direction:column;gap:4px;}
+#field-area-row{flex:1 1 auto;min-height:0;display:flex;gap:8px;align-items:stretch;}
+#side-column{flex:0 0 470px;min-width:0;min-height:0;display:flex;flex-direction:column;gap:6px;}
+#camera-slot{flex:0 0 270px;border:2px dashed var(--line);border-radius:12px;background:rgba(255,255,255,.02);}
+#status-boxes{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;gap:6px;}
+.status-box{flex:1 1 0;min-height:0;display:flex;flex-direction:column;background:var(--ink-2);border:2px dashed var(--line);border-radius:12px;padding:6px 8px;}
+.status-box-head{flex:0 0 auto;font-family:var(--font-d);font-size:.66rem;text-transform:uppercase;letter-spacing:.06em;color:var(--gold);margin-bottom:4px;}
+.status-box-list{flex:1 1 auto;min-height:0;display:flex;flex-wrap:wrap;gap:6px;align-content:flex-start;overflow-y:auto;}
+#field-wrap{flex:1 1 auto;align-self:stretch;min-height:0;display:flex;align-items:center;justify-content:center;position:relative;}
+
+/* ---------- field ---------- */
+#field-head{display:flex;align-items:center;justify-content:space-between;flex:0 0 auto;}
+#field-head h2{font-family:var(--font-d);text-transform:uppercase;letter-spacing:.04em;font-size:1rem;margin:0;}
+.count-badge{background:var(--gold);color:var(--ink);font-weight:700;font-size:.72rem;padding:2px 9px;border-radius:999px;}
+#field{--field-bg:#206c3f;position:relative;background:repeating-linear-gradient(90deg,var(--pitch-a) 0 40px,var(--pitch-b) 40px 80px);border:3px solid var(--chalk);border-radius:10px;overflow:hidden;touch-action:none;box-shadow:0 10px 30px rgba(0,0,0,.5);}
+#field .mid-line{position:absolute;top:0;bottom:0;left:50%;border-left:2px solid rgba(245,247,239,.7);}
+#field .circle{position:absolute;left:50%;top:50%;width:20%;aspect-ratio:1;border:2px solid rgba(245,247,239,.7);border-radius:50%;transform:translate(-50%,-50%);}
+#field .center-dot{position:absolute;left:50%;top:50%;width:6px;height:6px;background:rgba(245,247,239,.8);border-radius:50%;transform:translate(-50%,-50%);}
+#field .box{position:absolute;top:50%;height:62%;width:16%;border:2px solid rgba(245,247,239,.7);transform:translateY(-50%);}
+#field .box.left{left:0;border-left:none;}
+#field .box.right{right:0;border-right:none;}
+#field .boxs{position:absolute;top:50%;height:30%;width:7%;border:2px solid rgba(245,247,239,.7);transform:translateY(-50%);}
+#field .boxs.left{left:0;border-left:none;}
+#field .boxs.right{right:0;border-right:none;}
+
+/* ---------- bench ---------- */
+#bench-panel{flex:0 0 auto;display:flex;flex-direction:column;gap:4px;max-height:28%;}
+.panel-head{display:flex;align-items:center;gap:10px;flex:0 0 auto;}
+.panel-head h2{font-family:var(--font-d);text-transform:uppercase;letter-spacing:.04em;font-size:1rem;margin:0;}
+#bench-list{display:flex;flex-wrap:nowrap;overflow-x:auto;overflow-y:auto;gap:0;padding:8px 10px;background:var(--ink-2);border:2px dashed var(--line);border-radius:12px;flex:1 1 auto;min-height:0;}
+.bench-group{display:flex;flex-direction:column;height:100%;padding:0 12px;border-right:1px dashed var(--line);flex:0 0 auto;}
+.bench-group:last-child{border-right:none;}
+.glabel{flex:0 0 auto;font-family:var(--font-d);font-size:.68rem;letter-spacing:.08em;text-transform:uppercase;color:var(--gold);white-space:nowrap;margin-bottom:6px;}
+.grow{flex:1 1 auto;min-height:0;display:grid;grid-auto-flow:column;grid-auto-columns:70px;justify-items:center;align-content:start;gap:4px 5px;}
+
+/* ---------- director panel ---------- */
+#director-panel{width:360px;flex:0 0 360px;min-height:0;background:var(--ink-2);border:1px solid var(--line);border-radius:12px;padding:14px;display:flex;flex-direction:column;}
+.director-head{flex:0 0 auto;}
+.director-head h2{font-family:var(--font-d);text-transform:uppercase;font-size:1rem;margin:0 0 10px 0;letter-spacing:.03em;}
+.director-cols{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;gap:12px;}
+.dcol{flex:1 1 0;min-height:0;display:flex;flex-direction:column;}
+.dcol h3{flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;gap:6px;font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;margin:0 0 6px 0;padding-left:8px;border-left:3px solid var(--gold);color:var(--paper-dim);}
+.mini-add{background:var(--gold);color:var(--ink);border:none;border-radius:50%;width:19px;height:19px;font-size:.8rem;line-height:1;cursor:pointer;flex:0 0 auto;padding:0;}
+.mini-add:hover{background:var(--gold-2);}
+.dcol.sell h3{border-color:var(--danger);}
+.dcol.loan h3{border-color:#4fa3c9;}
+.dcol.target h3{border-color:var(--gold);}
+.zone-drop{flex:1 1 auto;min-height:60px;border:2px dashed var(--line);border-radius:10px;padding:8px;display:flex;flex-direction:row;flex-wrap:wrap;align-content:flex-start;gap:6px;background:rgba(255,255,255,.02);overflow-x:hidden;overflow-y:auto;}
+
+/* ---------- botão (estilo futebol de botão) ---------- */
+.jersey-wrap{width:max-content;display:flex;flex-direction:column;align-items:center;gap:4px;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;}
+.jersey-wrap.on-field{position:absolute;transform:translate(-50%,-50%);left:50%;top:50%;}
+.jersey-wrap.dragging-source{opacity:.3;}
+.jersey-wrap.ghost{pointer-events:none;}
+.jersey-frame{position:relative;display:inline-flex;flex:0 0 auto;}
+.jersey{position:relative;width:var(--size,64px);height:var(--size,64px);border-radius:50%;background:var(--primary);box-shadow:0 3px 7px rgba(0,0,0,.45),inset 0 -3px 5px rgba(0,0,0,.25),inset 0 2px 3px rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center;overflow:hidden;flex:0 0 auto;}
+.jersey .num{font-family:var(--font-d);font-weight:700;font-size:calc(var(--size,64px)*.44);color:var(--numcolor,#ffd400);text-shadow:0 0 3px rgba(0,0,0,.55),0 1px 1px rgba(0,0,0,.35);line-height:1;z-index:1;}
+.jersey[data-style="stripes-v"]{background:repeating-linear-gradient(90deg,var(--primary) 0 12.5%,var(--secondary) 12.5% 25%);}
+.jersey[data-style="stripes-h"]{background:repeating-linear-gradient(0deg,var(--primary) 0 16%,var(--secondary) 16% 32%);}
+.jersey[data-style="halves"]{background:linear-gradient(90deg,var(--primary) 50%,var(--secondary) 50%);}
+.jersey[data-style="ring"]{background:var(--primary);box-shadow:inset 0 0 0 calc(var(--size,64px)*.13) var(--secondary),0 3px 7px rgba(0,0,0,.45);}
+.injury-badge{position:absolute;top:-2px;right:-2px;width:max(11px, calc(var(--size,64px)*.26));height:max(11px, calc(var(--size,64px)*.26));background:rgba(209,88,74,.94);border-radius:50%;box-shadow:0 1px 3px rgba(0,0,0,.55),0 0 0 1.5px rgba(13,15,12,.6);z-index:4;pointer-events:none;}
+.injury-badge::before,.injury-badge::after{content:'';position:absolute;background:#fff;top:50%;left:50%;transform:translate(-50%,-50%);border-radius:1px;}
+.injury-badge::before{width:56%;height:16%;}
+.injury-badge::after{width:16%;height:56%;}
+.suspension-badge{position:absolute;top:-2px;left:-2px;width:max(9px, calc(var(--size,64px)*.19));height:max(12px, calc(var(--size,64px)*.26));background:rgba(209,88,74,.94);border-radius:2px;box-shadow:0 1px 3px rgba(0,0,0,.55),0 0 0 1.5px rgba(13,15,12,.6);z-index:4;pointer-events:none;}
+.label{font-size:max(10px, calc(var(--size,64px)*.19));max-width:max(68px, calc(var(--size,64px)*1.9));text-align:center;color:var(--chalk);background:rgba(10,12,9,.55);padding:1px 6px;border-radius:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600;letter-spacing:.01em;}
+
+/* chip mode (director zones) */
+.jersey-wrap.chip{flex-direction:row;align-items:center;gap:4px;width:auto;min-width:0;max-width:100%;position:relative;background:var(--ink-3);border:1px solid var(--line);border-radius:999px;padding:2px 5px 2px 2px;}
+.jersey-wrap.chip .label{max-width:130px;min-width:0;background:none;padding:0;text-align:left;flex:0 1 auto;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--paper);font-size:.74rem;}
+.chip-return{background:var(--ink);border:1px solid var(--line);color:var(--paper-dim);border-radius:50%;width:17px;height:17px;font-size:.6rem;line-height:1;cursor:pointer;flex:0 0 auto;padding:0;}
+.chip-return:hover{color:var(--gold);border-color:var(--gold);}
+.chip-delete:hover{color:var(--danger);border-color:var(--danger);}
+.bench-group-spec .glabel{color:var(--gold);}
+.jersey-wrap.chip-target{cursor:pointer;touch-action:auto;}
+
+/* ---------- modal ---------- */
+#modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.62);display:flex;align-items:center;justify-content:center;z-index:200;padding:16px;}
+#modal{background:var(--paper);color:var(--ink);border-radius:16px;padding:22px;width:min(420px,94vw);max-height:92vh;overflow:auto;}
+#modal h2{margin:0 0 14px 0;font-family:var(--font-d);text-transform:uppercase;letter-spacing:.03em;}
+.preview-stage{background:var(--ink-2);border-radius:12px;padding:18px;display:flex;align-items:center;justify-content:center;margin-bottom:14px;min-height:140px;--field-bg:#20231b;}
+#player-form label{display:block;font-size:.68rem;text-transform:uppercase;letter-spacing:.05em;color:#6b6455;margin:12px 0 4px;font-weight:700;}
+#player-form input[type=text],#player-form input[type=number],#player-form select{width:100%;padding:9px 10px;border-radius:8px;border:1px solid #cfc6ac;background:#fff;font-size:.9rem;}
+.color-row{display:flex;gap:14px;margin-top:12px;}
+.color-row .cwrap{display:flex;flex-direction:column;align-items:center;gap:4px;flex:1;}
+.color-row label{margin:0;}
+.color-row input[type=color]{width:40px;height:40px;border-radius:50%;border:2px solid #cfc6ac;padding:0;cursor:pointer;background:none;}
+#f-scale{width:100%;accent-color:var(--gold-2);}
+.check-row{display:flex;align-items:center;gap:7px;text-transform:none;font-size:.88rem;color:var(--ink);margin-top:12px;cursor:pointer;}
+.check-row input{width:16px;height:16px;margin:0;accent-color:var(--danger);cursor:pointer;flex:0 0 auto;}
+.mini-badge{flex:0 0 auto;position:relative;}
+.mini-badge-injury{width:14px;height:14px;border-radius:50%;background:var(--danger);}
+.mini-badge-injury::before,.mini-badge-injury::after{content:'';position:absolute;background:#fff;top:50%;left:50%;transform:translate(-50%,-50%);border-radius:1px;}
+.mini-badge-injury::before{width:56%;height:16%;}
+.mini-badge-injury::after{width:16%;height:56%;}
+.mini-badge-suspended{width:11px;height:15px;background:var(--danger);border-radius:2px;}
+.modal-actions{display:flex;gap:8px;margin-top:18px;flex-wrap:wrap;}
+.modal-actions .btn{border-color:#cfc6ac;color:var(--ink);}
+.modal-actions .btn-primary{margin-left:auto;background:var(--ink);border-color:var(--ink);color:var(--toolbar-yellow);}
+.modal-actions .btn-primary:hover{background:#000;border-color:#000;color:var(--toolbar-yellow);}
+.btn-danger{border-color:var(--danger)!important;color:var(--danger)!important;}
+.btn-danger:hover{background:var(--danger);color:#fff!important;}
+
+/* ---------- update squad modal ---------- */
+#update-overlay{position:fixed;inset:0;background:rgba(0,0,0,.62);display:flex;align-items:center;justify-content:center;z-index:200;padding:16px;}
+#opponent-overlay{position:fixed;inset:0;background:rgba(0,0,0,.62);display:flex;align-items:center;justify-content:center;z-index:200;padding:16px;}
+#update-modal{background:var(--paper);color:var(--ink);border-radius:16px;padding:22px;width:min(520px,94vw);max-height:92vh;overflow:auto;}
+#update-modal h2{margin:0 0 12px 0;font-family:var(--font-d);text-transform:uppercase;letter-spacing:.03em;}
+.update-explain{font-size:.82rem;line-height:1.5;color:#443f33;margin:0 0 10px 0;}
+.update-explain code{background:#e9e1cc;padding:1px 5px;border-radius:4px;font-size:.78rem;}
+.update-link{display:inline-block;font-size:.82rem;font-weight:600;color:var(--gold-2);margin-bottom:14px;}
+#update-json{width:100%;min-height:150px;padding:10px;border-radius:8px;border:1px solid #cfc6ac;background:#fff;font-family:monospace;font-size:.78rem;resize:vertical;}
+.update-error{margin-top:10px;font-size:.8rem;color:var(--danger-2);background:#fbe4e1;border:1px solid var(--danger);border-radius:8px;padding:8px 10px;}
+
+/* ---------- opponent modal ---------- */
+#opponent-modal{background:var(--paper);color:var(--ink);border-radius:16px;padding:22px;width:min(420px,94vw);max-height:92vh;overflow:auto;}
+#opponent-modal h2{margin:0 0 16px 0;font-family:var(--font-d);text-transform:uppercase;letter-spacing:.03em;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.wip-tag{font-family:var(--font-b);text-transform:none;letter-spacing:0;font-size:.68rem;font-weight:700;color:var(--danger-2);background:#fbe4e1;border:1px solid var(--danger);border-radius:999px;padding:2px 9px;}
+.opponent-team-list{display:flex;flex-direction:column;gap:10px;}
+.team-btn{display:flex;align-items:center;gap:12px;width:100%;padding:8px 18px 8px 10px;justify-content:flex-start;border-color:#cfc6ac;color:var(--ink);}
+.team-btn:hover{border-color:var(--gold-2);background:#f0e9d6;}
+.team-btn img{width:34px;height:34px;object-fit:contain;flex:0 0 auto;}
+.team-btn span{font-size:.95rem;font-weight:700;}
+.team-btn .jersey-frame{flex:0 0 auto;}
+.team-btn-dynamic small{display:block;font-weight:600;color:#8a8368;font-size:.72rem;margin-top:1px;}
+#opponent-edit-overlay{position:fixed;inset:0;background:rgba(0,0,0,.62);display:flex;align-items:center;justify-content:center;z-index:200;padding:16px;}
+#opponent-edit-modal{background:var(--paper);color:var(--ink);border-radius:16px;padding:22px;width:min(320px,94vw);}
+#opponent-edit-modal h2{margin:0 0 12px 0;font-family:var(--font-d);text-transform:uppercase;letter-spacing:.03em;}
+#opponent-edit-name{width:100%;padding:9px 10px;border-radius:8px;border:1px solid #cfc6ac;background:#fff;font-size:.9rem;}
+
+/* ---------- responsive ---------- */
+@media (max-width:920px){
+  html,body{overflow:auto;}
+  #app{height:auto;min-height:100vh;}
+  #main{flex-direction:column;padding:14px;overflow:visible;}
+  #field-area-row{flex-direction:column;}
+  #camera-slot{width:100%;height:140px;}
+  #field-wrap{min-height:280px;justify-content:center;}
+  #director-panel{width:100%;flex:none;}
+  .tb-row{gap:10px;}
+}
+</style>
+</head>
+<body>
+
+<div id="loading"><div class="spinner"></div>Carregando elenco…</div>
+
+<div id="app" class="hidden">
+  <header id="toolbar">
+    <div class="tb-row">
+      <div class="tb-title">
+        <img class="brand-logo" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAKAAAACbCAIAAABqEAcUAABKuklEQVR4nO29eZQlVZkv+vv23hFxppyzhkxqpAaEgioopAoBEUFpFMRGnFpspbuXXummu/ECz35tX23Bt/p6mxbHux7q6nZA3sWhFRXEAQWLuaqgqHkgi5qzsnLOPFNE7OH98WVsDljZt/GelEG+dVatrMw4ETvi29/0+4Yg9wBepVcwiRd7Aa/SzNKrDH6F06sMfoXTqwx+hdOrDH6F06sMfoXTqwx+hdOrDH6F06sMfoXTqwx+hdOrDH6F06sMfoXTqwx+hdOrDH6F06sMfoWTmukLaAXnROAsJBBLKIMYCINYplEKEIyBzEWQMYyAcY7cTC9pRokkrIZzIAIc+L4hAQI0AEAH9SjNBeRqjiQww7c74wwWVSEim6ZQAhQaxASFuqEcikZVBCmY4JlDdmByVjWul0TBOHvc8xDRTC+1KWQSQkAQrhiZns7yrI46BKwukqqRsE4rhKkwZFMngkKtWs3nZnY9M8/gsMW58UBIkIRJQArC5lRiTLL3mcK3f9n7qW8kQFHCEsgCdtot/XKRbElIA9gEhtD+2mXqg388cdkbj8zrAJlQIIFFqAPdakStls8FQDqjq6GZLtlJgYAAW7BRLGoGBrVcUK6ov/viif9693hh7uzO0kRLEMCEELVEJMrkj7/Ql4kEi0QiSqxNnVVEQbWWHBvT9Wr+KzdMfuhtI8ZUEChrdaABHaKgkFZndD0zzmCXgAoAEaoSkYGk9U+F516zRPXGC9sJNnCBI6e01kQUpg7hC5PU6Rjv3Isj8TbSTgfSBXDOpFrKQJDUJt21N1m5XKz73NMlpeMQUT1CLoYFjm+RmkYzzmBImARSRDAx8tjwxOzzriv2LM+1mtCqekQt2pUTMoCFLsZCF4PjWw1rX5htfrEYrCw0XOJSIgqR19posipPwXi0z07m0/rO2461tVqhDOoWys205ZlxBtsgQpoIRIbo8DGz7F1L5y/RxVJgUxuoDi1iIoKxFKTWBHkbJBQff6HTMPKlxmCnA0gNYdLU2ERL5UioJHWhFEk8fqSWv2ip++6n9igdoWCNSeXLX4IVtIZBtYjL/nbe04O5fGup04axjAv50GlLomRE4rQgqhFyFua4p5mOYS81BqdOuDQxuu6ccSIwTpLR0ulYWbgwgd6/3fz7P1auuHDQQAtIsse/32bRjDM4FjKqGxuF9z/V9ab/2nPaKa6IUIcIw2lVsZTSOeecIyKtdRAExhgASin+fZqmYRgKIZIkUUrxt/h4AERkjOHzCCGMMUKIIAi01sg2hDGGiIiIDwMgpbTW8sFaayEEHyBcIdUTqTBFEcVG5UxaLwZSV13i6pHK25JD4jAqZVtZl1vQ7kRqjNFaa615GbzVUlsp2nYHnTpsezqOf7knDANr0plGmmYcyQrJIhIi7/7pS+GSk1MSpagonZo2Nsjn88YY55xSSgiRy+WklMxyAMYYKWU+n7fWaq2jKGImEREz2DknhBBClEola621VilljDHGKKX4N2maRlEEIE3TXC7HTOUTMl/DMOTdIKVMzbAo5FtUFAsVhDHCANU4Vrl8ThYcCQdI5Kld1aktaqm7Gi9DNBBN7ZRCnaokQyeMKOqfPtqbmFSIcKaf/4zHwZQ6hLlDx9yvdnWtOltHUlo3EUSF6cK/arUaRZHWOk1TpVS9Xn/iiSfSNGUJO/PMM1nCABw5cmT+/PnMrdHR0TRNe3p6mFu7du0aHh4+++yzmeVJkoyNjbW3t/OjPnjw4NGjR9esWROGYRzHrBW01izKxpjx8fFt27bxdxctnL/gBKWldS7RVh1y1YOFogYhEac41xKYMHEUOKusTXJSxewVCyGUUqxLAFhrCSFEYoTVLp4zK/yf3wvffAHCeMZFbOaxaEKi3TNPd6heIC4KVDVI2MJ0h7OcsRxMTEx0d3c/9NBDY2Njo6OjW7ZsOeWUU+I4FkIcPnz4jjvuePTRR4MgmJycvPbaaz/1qU+tW7euVqv19fXdcccdGzdu7Ovrc87VarWzzz77v//3/37w4EHn3MGDB7/61a/29fW1tbXV63VmOSsM55y1tl6vf+ADH+jr69u5c+fWrVu//C9fqluMDB4TabgxCr80a/5gPa4dPrCfqu9X1cdqoykmUnICzohUGQWAiKSUSimlFJsJIgoIEnlrUw3Xkc/d94TTsQLNLMqB34MEI5Ah3NGhfEvRBIEjbUXY5oyZFq9yDoAQolarLV269Pbbb1dK3XfffWmaXnjhha2trePj46Ojo1/84hfPO++8j3/849/61recc4VC4b3vfW9XV9fFF18M4IQTTujt7R0YGJg9e/bmzZu//e1v9/b2tra2xnF88ODB3t7e+fPnE1G5XOanzyqatX29Xo+i6MQTT9y7d68x5i1XvPXit73t2hv+9ms/+vGGU045+a7vRwLW0oK+p2+UuUULFr2vGJ5OSY6ITJAEMtBT1r3RXjjnpDNGS00OSrlKakDjw2jtIeiZdQZ/D9kkB2kPT6A9aBVSC0hrSCKhaYifSJqmGzdu/Id/+IcwDG+44YZLLrnk8ssvLxaLv/zlL51zy5cvf/vb316pVD70oQ/t27evVqsRURzHb37zm3fu3MkClKapEOLAgQP/+I//uGzZsiiKvva1r23ZssVreGttrVbTWrOxd86xtOXz+Wq1CuC+++475ZRT/uQDH9RC/7f/66NnHzl80k9/oXIRfv6z9L7faEsiTd7+zM4zKhNhbPR4DIpz1XrjnTfelyUrhDOWAEjnBOzkpDQzj87NOIOtsdDp0wPFXAQHlcBKxBDTag5jTJIk7Fj19vbWarXPf/7zs2bNWrp06fz584Mg6Ovr++pXvzo4OPjxj398/vz5N99888jISKFQUErdeeedJ5100pEjR/L5PPvPY2Nj11133eOPP/79739/7dq1b37zm621QRCw81ytVvlnNgqsV7XWtVoNgBBCSvn9/+/7/c+MdnX3XEgyhJY6nhyYSC88Lx46KpQtuOj8ieFd1QlZCCHCMEsduIwA8K5NrTPKQEAZFUTKAmNpjuyMc3jGGSwcDLDnYM6qWqxjq4QUjuS0DFZKMbeccyMjI7lc7q//+q8HBwf37Nnzhje8obu7+6abbjrllFOGh4df97rXTUxMXHvttawJpZS33HLLdddd197ezjuDiO688862trZyudzR0SGE+MxnPsOeVBAEe/fuHR4efuyxx7TWbPKNMXEcB0EQx3Gapt3d3caYa/7qw7MX5seHxm7WaV0pWBR1Wlz3s2L3QgCguK9CYWpqtpaanNMGDdxt5HEqULdahDogpSmVIj9cgaCZf/4zfQEAEsHmoUhRFAlVMGEqglp9nN1dH9swFs1RUL1eB7Bq1aovfvGL1trPfe5z27Zt27Vr17e+9S1jzI033jg0NKSUOvXUU0dGRtrb22+77TZ2Vnt6er785S+/8Y1vHBgYCMMQwBVXXDE0NDR//vxFixYdOnRo5cqV11xzDXvOv/nNb/bt23fo0KH169fzOjnuAmCMCYLgvPPOGxgYuPULX0gT3HTLLUTmu3O6AeU++D6c/zZDgMVjFj+JJtpNuxR5GYwkmUQysMoqgW8wtCa0kTYuJB0bbVrTyZFWPZUinkGaeScLMKmr1rRoF0LCGAtAyVCpkFUxR738A2MXUsokSfL5/N133z08PPzhD3/4tNNOm5iYuP3221//+tdv27bt61//+pe+9CX2iR544IE5c+Zs3LhxwYIFw8PD3d3dBw4cOO200+64447Pfvazmzdv/vSnP33XXXc55xYvXnzHHXesXbt2y5YtjEKwfgbAF2XuJkkyMDDw+OOPJ0kC4OBP7/77j/39vsGjPUsX/pmQ2+Wi/zI0ENYmgfSXlP/zqBYFJ1CoW2URKdmAJDm26wD4RjLQRpAgJaVNNREFCmOTKXFVwEzSzEOVQKUetLz39JXLRUkJl4ByTol8ktQbcYAkSaIo4hCIHVqW79HR0R07dvgdwNFwFEU9PT2MUezevZuvIoRYuHBhoVAoFotxHD/11FP8y/b29s7OTna79u7dO3XbmUNHREuWLCkWi1LKMAzZHmutN2zYwCsBhd2dubbObsq1zxH5fS4+XB5HeRiJlkG+Q2J2ZzHMF3JhRyAIsu5syIhYFEVs6ZMkqVQqgIWLrNQU1zTo0Lj82zcN3XzNEJKZBaNnXoIJlUS52AloIHQwzjlnoZSq1Wr5fB5AHMfsBvMT8VgjgGKxuHr16nq9HsdxoVAAwMxmTgdBsHr1aoZEGCDM5XJCiDAMV69ezawCoJTi33d0dPBmYuSEAUWGQhld4b0VBMHZZ589OTnJWKmTojtqSUpKGbO8FvR2d9XylBhCkkQtxQhRCklKVuI4MKEg45wLw2f1U4ay+Y2ryNl8iP7RGS7mAPB7YTBV6kUIgrPWwgLCkbHWwZRKJQD1ep0V2oEDB04++eQ0TdkWehRXCNHS0mKMmZycLJVKbLb58RFRmqZdXV1CiHq9HgQBAPa5GKRMkoSZxEAVc5EdLgBsFJBtGgDscIVhaIxh0FRJKk+YOipdcToqwqilqGy9u9BbdTZyQsaJLlCLJpLSFYOWuG5yJV6bEKJcLkdRlHHaGWfIOCGFMwiE7R8pGG3lDD/+3wOD5US5gJyTIGshZQDnHAxbUC+y69ate/jhh8866yz/dNI0BcA/A9i1a9dpp5121lln5XI551wul5ucnJw3b97Xv/51tp1BELBcsmjyv7yEzZs3v+Utb1m+fHkcx1ddddWNN95YLpd9XMTfasxVAIjjmONjodyv7v3Vxz5x0zHjnnrs0T2HDyxpm1ulSe1sS667boB61UROGmfyUVCuW/6WEEqpb3/725/97Gc5LrdaO6SwgJRwIlD64GBkNUnxMgc6LNzYuBR5K0kJUkJJOCXlVFjCDsiDDz748MMPv+51r2P/1hiTpimbSWNMvV5P07RYLH75y18+dOgQHzMyMrJ8+fJvfetbhULBWhuGIQuu1jqOY69sOe/U0dFxww03HDlyhG08AM49sFbnK/oF89V5GyVJYlI7r/eEt7zpgjipOIIrJ6kwJooU5Wpx1bo6pNAgCUlVLaMC76okSeI4XrFixTnnnFOpVJxzQsAJJ0mwZgoIh47qNJ3xnObMM5hQqUCqVAhFRARBJFTwLHL08MMPP/jgg2vWrOEH4VNDHnxg92d4eHj9+vX83/Hx8de85jX/9m//xjqZiCqVCtts3hOMcrCgG2NGR0e3bduWy+VYXrXWHERFUeQ3GX+d/Tj/XyIimOpkeUdfH7QAZDmpQ4RhWrQmMSaFoFC4PILYCmWQJhOse9h9m5ycHBkZAWMmioSAkNDGAILIjU7oGc4FA78HBivnDtZyPYHUcFIKJ4xUNq47lpt169Y9+eSTa9eurVar7DZ7ZIDDGHZS0jSt1WpjY2NBEFSr1TVr1nzzm98EwFLIjOTLsdadurdMzxtjJiYmkBld9nKZWJdydpm1NCtn3klKKanyY3E1rpSd1XBGWONIa1NRQUGpUGhbM4bIBcppaQ0CVjx+MWNjY2maWmu1IUKQJi4PqZ12JAMR1up5CIIg9zxEq3mCPfM2WMn+/lRKqUhobUg4R9Y5K6UcHh7+xje+cfrpp09OTrJI8TNlIWYXlP8LoFwuAwiCYPPmzQ888AAznsPlOI695LFB9d7Tb1NjgMReN3+dlTl7WAy2MDpmjCkUCuwxhGHIy2BkhuE2KWWtVuPMtL80u3izZ8+u1+u8VMAQESnpDGednXVmsmpmzfTjn+HzAzCHj+VVYEGWIJ0zAOtgV6vVuru7PUu4PCNN07GxMVatHLwCYJcqiiLWfswJAFJKFrhyucyRVRRFQRDwo/cr8PlHVgZeVbCVZeNdKBQ43NJaj4+Pd3R0pGnKx7DrrrXO5/OTk5MefeONWK/XrbVs3cMwZDb7ncHM9gpfSGGtVqRA2rh4bFLNdF30zLeupHZwojMKhqy1uSDU1gohLECOarVaEATMCeaNlPKBBx64+OKLly9fvmDBAmQBjNb6tNNOa21tbW1t9YwnIg6EhBBz585tb29fsWJFtVq98cYbr7zySuYca8vGR8zYIRMHwczFarXK/DDG3HXXXe9///u3bNmycuVKAHwMS7A/Le+VKIoee+yxSy+9dMWKFYy1nXXWWb6AhA0HqwcppbUQAAQ7j4CwY7U8UJvR5z/jDI4T7DsmZAmYyvVavkVn3cDAQGdnJwBWd/zEa7Xa2rVrN23aVKlU+CvMpJ07d5ZKpa6uLgA+BcSakIhaW1vTNN22bdvIyIgPaj01Vmyx58yiprVOkiQMw3/5l3+5/vrrv/nNb77jHe/QWo+OjhLRr371q1WrVvlAmU/LG4V1ALsIhUJh0aJF27dvl1IODQ0B4EKUKIpyuVyxWORd5ZyBgROCAOec0Ro5mohbgZEZff4zL8E67OuvLF2mptSjgjGpUIG1mohYJthXAsBYVWtr67x589rb29kk1+v1fD7PBVMe3bTW8lMG4JxbunTpwMBAW1sbawLO93lRy9DgqbiLL8rAWalU6uvr27Fjx9DQ0KOPPvq2t71t8+bNF1xwwU9+8pPGxKJnMAPUyFgehmGpVDrhhBOMMeVyOU1T/kpHRwcb+IULFz7xxBNKqTSdSjRZgrPOGasiGh6f8ec/4xeox6pcMxIBOVhrpWBEC+zrzpo15WSw42OMGR4e5mxuLpdjRjKqlc/n6/W6c+41r3kNuy3MY3aJGXUKgmD27NmsS9mC8sk9KOZ5zIo9iqJ77723VCqNj4/39fX19/dfeOGFb37zm+++++6+vr7777+fVWs+n2fpj6JoYmKCTcYUiulcqVQaHR0VQixZsuTf/u3fRkdHwzDs7+/n2H3u3LmzZs1K01SQE0L6JUkpVZ76h1/+2aS4BkQRnDXGBUopYQ3BQDhnWKpyuRwzgwHhkZERBi/ZQDIXWQ9z+dWJJ57oVSVzzichOIgqFAoew/LkVbSPsFl//PznP7/wwgvvueeen/70p+w0HT58eGJi4gMf+MA555zDEQ4D5qyTucrHWpskSbFYNMYsW7bsU5/61Dvf+c62trajR49+9atfzeVyx44dAxCGYWdn51RyiaxwwiMqUkqlMDw2swYYzWSwAxqCOUdTmN+RoXa0V4QtUOA0NOm8EWlk49jS8uXLS6VSHMdSylwuxwU0o6OjDIAw9Mgm0EeuUsrFixd7PxYNUuX5FwQBiyn/hvnhKyb9I46i6Mc//vG8efPe8Y53RFFULBZvvPHGtra2Bx54YO3atddccw2D27wb2IgIIY4dO8bKmUESrvu57LLLHn/88bPOOmvFihUtLS3VapVjLefcxMREPp93zhGE0dIKp0goJKnMt7uR/tGccU4aEBQiWKMFCRiLAM3KFM+8ik6Vkmw4n82LsZ6aP38+o/9MjMt/8pOf9KAjAMaZf/KTn9xwww0cuhQKhUZDyPqW/2uMqdVq7EB5tMGDJ0xBEHDW4fDhw5s2bfrEJz4hhPjYxz62dOnS73znOxMTE7lcbu7cufv27Vu2bBlnC3j/KaWiKNq9ezerFp+nYr965cqVhw4d+uM//uN9+/YtXryYAVTvAVhr43oVTjhnnCCbOKh6FBX6B5UDIABjYMk5gASchWtannjGkazxapgLBAQJBv6mHjgZY7q6unzQAi4eJuKggvEBrTUnCru6uv70T/90cHCQiLq7uznM5bgTAJfK9vf3b9y4cXx8nEPn4xIbTgBa64mJiVtvvZWIPvrRj46Ojt5zzz0f+tCHPvKRj9x7772/+tWvPv/5z99yyy0ccPsEhlJq69atH/7wh1mjIOuQYPnu6upat27dn//5n69fv95bfT7GOSclkbPkDEFKESmyBPnEtppFCPbTrXUOcAIApi06fcE04ww+NqZaAiHEVLkkyCJDgjo7O/nmGRzgDIFvL2C8kNXg3r17t23bVigUqtVqS0tLHMfIuJUkSWdn56OPPnrkyJEjR44cOnTo9NNP91d3DeSTRayx8/n8+Pj4iSeeuHHjxpGRkVNPPXXr1q1XXXXVSSed9Mgjj+zcufM73/nODTfcwLafM4xCCObinDlzxsbGWA/7gmpWJzfddNN3v/vdRx991GU5jCiKlFLGGXJOEqzTRlsyJgxEOQ3SNIAACFM9Wc4BAq5pWcQZZ/DhkaCo4GAaZ29YCK31okWLbAN5KWGZ5rR8EARBEIyPj4+MjLCf7MEKdmUZtyoUCm1tbZ2dnW1tbaVSyVe047kq2kswt0Fcf/31fX19g4ODZ555ZhRFZ5999ne/+93zzjtPCDE+Pg7gS1/60ubNm4MgYDCL4Yuenp4TTjjhxBNPXLduHbsIvBI21ZOTk5dffvmGDRseffRRxjVZhwPWkhVEcCmkgpMOMZDWauGzvgsbMXKuedWWM87g/hGVE41P2YIsIIwxHCM1BqneX2UXlwXaOTc+Ps5OcpIkHCt7YmXA+8PXafAO8Ac0MtjXXUdRdNNNNwkhtm3bdvvtt//iF7/Yvn37lVdeeemllx48eFBKyakqrkpoaWlhXjIy2traumrVqosvvvirX/0qABZlVjbsLa5cufLIkSPLli3bsWMHC7dQgVBCQgqQjCSFytgUqFXKwlmADRgBzkE4J14+DB4adwGscZqmQAkDwBHq9Tr3hwHgp+n1cxRF+Xw+DMP29nb+ge0xyx8HJywuHPIy+Zo91vB8dc/aRj+LI9T9+/c/8sgjlUrlsccee+tb3/rEE09ce+21F198cRRFDDiz4z1r1izvM/sWqUKhEATBmWee+Vd/9VfXXXddkiS8JGstA9ppmnZ2dv6v//W/rr322k2bNmmtdeogjDWAU7FJU5sGMoyCtmpVWOaDECAAFgRq3qihGfeiy1VkAvycRddqNYZ72ACz09Tf379kyZKWlpZTTjmFe3sYVnzTm97U3d3NIQrnbTzQUavVmNm+6JUF1CcNn3dpjzju2bOnVCp9+ctf5n4nKeU111xzww03XH311UuWLOEVXnXVVR0dHQC4RISxSY+7EdE555xz991333bbbQcPHuzu7qasPIiXIYS48cYb9+/f/+CDD7a2dTiZakCKAMI4kK2LOHV11t9EgCQYWIemSS/QTAYLZbUWUkBYGJAiZ8ho+vn6/GtPjwuBTMlJQ5aUsyZQ5ujRowxG+tRsFEX1ev3kk09+5plnjhw5wgLEeORXvvKVzs7O9vb28fFxxrlY9Hl/sDvGNpLjK+YBEbGC5T3EYs28371796ZNm+bNm/ee97znyiuvHBoa+tGPfvTkk0+ee+65LS0tjIsdOnTo5ptv9vG0Byx5LyJj4bx589ra2hYsWPDrX//6vPPOY97zMngLrly58oEHHkh1LYeClXVtrEwdSVtzAkWxf1Cc4UqwZY2E1bPTIamXYBzssuoE9+y/iZYQljIIZCqtLcjCOedaW1u9C80/DA8P9/b2TkxMdHZ2ctHMlAHLsvFcsdUokVEUbdy4kT3eUqkksl7vIAj+9V//dc+ePVxJuWjRot27d7e0tPC3BgYGLrvsshUrVtxzzz3r168nokOHDn3uc59rb29nG6+UOnbs2Bve8AZfHNna2son9y4CC2sYhm1tbatWrfqjP/qjW2+99eqrr2bucnDF/locx0VXmHKihCM4cuwQWMgImNApKIQkQMNaLZvnRTdTRVuaMumWIJxzoIlqRNIBcJbQsGaWA06k+3CC+dfS0pLL5TgVw+Gmz82xQo6iyDOYtXG5XL711lvPPffcyy+/nLP3/JXFixdfe+21CxYs6O3tVUp1dnbySbTWa9as4a1z2WWXzZ07N03To0ePrlixYvPmzbywhx566Cc/+QljL1EUccjO0j80NDQxMcEFAt6vLhQKq1at+su//Mt3v/vdjF27LMOYz+dbW1udI+dcA4BBgigM3JGhFEiVApSEMZCQgjDNxJnfgZrnZDnHcEXjOUcnA8pbJ8iQICIBJ4ikgzCEDFTyqT0Oaikrt/COFZtbdozr9TpLNn/Fx0Knn346Nx56xWiMOfPMM5ctWxbH8fj4OPeZ8UP3oyCSJLn77ruPHj06PDy8dOnSer3e29sbRVF/f/9HP/rRSy+9lAv8uAZPCBHH8eHDhzds2NDf3z88PHzw4MGBgYEjR45cffXVhw8f5iXxpmQzz/0Tc+bMmT17tjPP8iwbR0BRaA8OWpCBFICEZcSXrGtasVYzvWgH1sWCCLAA2aHJvMw7K6QFOeEAkIOwkJpmz57N/jAT6+GJiYlGhA8N3i8zknNw/orMe611d3f3V77yFeYEAC6xaGtre8tb3nL06NFcLsfbwvOYH73W+q1vfev5558PYPny5bt37165cuWmTZvOOOOMT33qU+x5+errXC4XhiGXZtZqNQ7TK5VKmqbnnHPOBRdcwI1ryNLVPh4rlUqc7XcwzpmpeX6ABEWRG650Q5HTFsbAwmgYrZs4QKaJEgwIAmVgmwOA0XIogkxFcxjqAMA56ujoKBQKjWFMGIZjY2MstchiVpcli/yRjSoaDWG0tZbbWBgfZhTzkksuaWtr4w0URRFLNrKiIY5cX//61//whz8cGBj4sz/7sy984Qt/8zd/wxV9XK7LoVFbWxsAX43L8ZhXMMeOHRsdHeU4amhoiHUS/0lKyTG0L6C0U89BCFBOYUefgyNScM4wCN2AozeBZiRMIiI4B2CiFuWlUyByJEEAjIAFNKi7u5sPDoLAe8Vcg8hljvxX5jGn/fnJ+lJZZnOhUOBsknNu06ZNK1eu5HwDm9glS5asWrVqcHCQw2ubzdFhhcGdoq973evOP//8z372s+vWrbv//vs5S8hFAbw8rjjgGIytADvqDMDxRvnRj36EDCljJ4D3JYDW1tYwDJ15NlpzZGGFUKQCu3VHarSVgSBtQVIJAxlaFzdrAl4zVXS28YT/f5wIRRAWwgHkHAFEhqCB5cuXc4FEtVr1xa1JknBfL2tFkzX2sAiiodGBiR83JyQWL1585513cgaXv6i1Xrx48bx58/r7+31hrK/cA8C4yh/90R8NDg7+xV/8xd1337127dpKpSKyhn9k5UT8db7o+Pg4B8QMRCdJcsEFF4yMjExOTo6Ojs6fP58VA4sv57azWNw6AhqyakpiMomMhtPWOkBKkGiih4UmMjglSHLG5KDrMM4FEI4OTEZzc6lxliJnU8GFDcoitbUlS5awv8OPjy3x5OQkBxj1et2nVL0SZhiSByv5zK7/axRFP/vZz8bGxjxAzW75W9/6VgaYXMPgranMBwCgXC739PR0dXWxRPoeQwBsg1lLsxXAc0sGmDiTyGvg1AIfxsBqR0dHEASkjJCREgFS54yw0lmk0gYWVKnmnMOU8SJrnW5iO0vTGBwEggv2EQhgysl65pmEn6Z/Fry7K5XK7NmzPeLjwaZqtcrzMVgBsiD6jD3/ywUbzG+bdfeyLLa1tW3dujWXy7FDDoCIzjjjjNe85jUewmRtwU4QSz+XlNhpiF0zTtrzArhkmrlosi5Iyir6PGzJyiaOY2Y5lzO4LPno96WDrdeF4EjC2qbP1G0ag+OahYF1BsaC550rHOlvR1ZYw/fGjKnVaq2trSwTHIcw1jg5Ocmqz/8Jmbn10uOFz5thv3tOOOGEjRs3+kCLTcCCBQtmz549MjLicxJ8KpZL1hOcpDou8cE8eo2VdrlcpixTyUqosSqPLT2yeMlvDh5b4M2N3xCAm6zJKT44C2Z686hpDI7yAs5J6RASA1dxgg2bypQVNQLw6GOSJL7C2RdKpmna39/Pv3ENBZFokA+PavlwUwjB7i4Rtba2fuxjH/OxtW8oveKKKwYGBjjs4VCbMoCTD/P+8G8TX4IrAOM45llMROSNusk62AD4PlXKYnfuvejo6JiYmGBvkbJCoqnqfKEnKkWAnAUkYF1zu/6b5kXbxAoZOcSkAQdrUUupoluDYOqBTh2WSTNXODNozDLEbKtWqyzcfDw7vf4MJ598MjIQ2GPCtVrNZMMsiWjv3r0LFy7kLcItoKtWrTr11FMZk2LVygqDDUE+n+f9cdz78iV2lLWV+vWwX82anJdks0JPytLVjHFyfRnjmv5OefdAJeOVPKxzDiQlUstYB5oUCzeNwUIAaYwQCCS0FULUJvIaVUA1hqr8aIrF4sGDB9vb23lfswQkSbJ48eLt27czpOw9HQC89yuVyrx58zZs2NDd3T05OckOahiGlUqlo6OjWq1qrZcvX/6DH/zgkksu4T5SypzwNWvW/PznPw+CYHBwcOvWrVLKSqXiEwOYfjotZ44HBwcXLFjQ19fX09Pz1FNPcSF0pVJheXVZnoPdQK5T8AkPth3z589n/eFDg6nSosgdG5OW8d1nnSuBaabuvlBqXhxsgSAgSp025Ajajo0HaG+cYUBe8ba3t//Jn/zJX//1X6dpun///kqlIqUslUpLly4tFos+ivW6GgC3Bo2Ojr7+9a//9Kc//fjjj1erVYaCly5dCoAzx7Nmzfrnf/7nTZs2tbS07Nu3j2W0WCyedtppbHG3bNnyl3/5l29605u2bNkyOTnJRQRimk41ZFNou7u7Ozo6lFJdXV1f+MIXnn76aQCHDx/mtjmZjZLh83hD4JMop59+em9vL4NfnutTWyofDI2wgXCAg1Bwuok6unlDWCwAWAVBCs4BtPXp7lUf7z1rfkBZts6DDACMMRy/Mi89QtTd3c0zQikrZhNZJ6AHL7lDBJkzDKClpSUIAt+1XS6XuUCaHWyuBuno6OAiulqtxt4ca0vfoXT8B5RJWxAEbW1tQRDw7FNud+Mwz6Nj7IiZht5Gk7W/cvm719WMqUkpd47pT7xx/B+uOepSOLKCIpjYgkSTeNw8CSYAEKRgtLHCSDkeBzKYKrBig8c7mkGixx57zANYTPxfPzXHEz+Uc88912+OOXPm+Djn8ccfb3TE0NC+8KyUAKtXr+aN4pwrlUrFYtFaW6/Xn3rqKa+obdZ3xCenbFYsEa1du5bdojiOH3rooefZ7N/eHEKIM844wznHWQrW5GEYjo+Ps0rge4njuIewcaSlRkfyCIgcLEHknKk3K+3fVKhSwBotnJRkRGiGh4NSHj4iZBHkQugNGzbs3LmT02reBPIx/jfU0GMyPj5+xhlnrF27NpfLcYDLDUj79u17+umnG11TTMUe4B98y+9nPvOZH/7wh7NmzeLiG3Z9q9Xq008/7dNZjRuiMULjycSrVq3ikqu+vj6PafsvPucxCFGtVi+99NLW1laWafbsGCFn9IMLQ5VSUWQeuD8O/hG2khqBADFIyLBpXaVNrOjIfD+CtRAwgxNBQVmiqVZdlmBWxUmS8OBJ9r+8xWWlh4ZOE35AUsrbbrvt7//+75cuXcrRRaVSWb9+/aFDhzo7O73wyWz6gr8Qq8dCoXDRRReNjY098cQTPjDbuHHj/v37e3p66vW6bBj6brNuM1ahxphisfiJT3zia1/72ty5c48dO8b+fyNTG3/mu+jp6XnooYd6enpWrFjR2dnJhZW+ypodMf6vknq03C65GsICAWCNa17dTvOwaIKDEBRAGmdhUwxXo9A4jygxCu8xXk4KcbqGuetDT07n8cBI/kq5XN62bRtbWf7rk08+uX379u7ubpflgAH4PKCPTVmXaq2HhoYmJyd9DPPwww9v2bJlzpw5PDqCz8CL8TAk6wM2sQMDAxx579ixo1qtskvRGPuZbIw/3069Xi8UCkePHj1w4MDAwIAXYvYG2L0A7wYniwr1GFbJgAB+6UzSNLY00wY7gOyz74nZfSDMK8s4jn8ifPNeOtFQymqzMShe+BrhYp4hyx7Kxo0bH3300YULF7K38lxgaEqGfFsRP9xjx46NjIywm/Pwww8/8sgjp5xyCiPevufTu2zexDI/lFIDAwOiYaa0b5ahhslL/gYbo8EdO3bMmzdPKVUsFgFIKXlLiezNEM5RRR+tlsPWnIYAkGoHBdmsMKmJ2SQiJ2A0LEhBKGzY4loK0oO6lLWlCCGuuOKKZ8HYbG4SG+BGaBdZvVySJFwbxbL785///KyzzpLZ9N/GqIPPwLLokSbGsFgWDx8+fO+995555pkMDjOrfLaKY1k0zNPz2p6ZzQqDXadGBIaJv+Xh9ziO29vbd+7cuW3bNmYnW3EPejjnCAmQnxzPBdZCwlkoB8iXYkWHc4ZHM0BIBYe+Qy6gKY+UNRgDs+VymXOFaBBf7+l4UNPLkLW2Vqux+j127Njtt99+0UUXTU5OAmBwijP5UkpfcMl99XxFJq97hRAXXXQRjw/gbyml+Bhvgzn4cVmds8eeWDHw7uHVek3jdwP/ns/Ddfy9vb2bN2/euHEjIzPsZ3DWEgDIqKBzshxCCudAjtDUV5I2s33UWisoBMVwKk11Wbs0IZl7VoUmScIlj729vT5/wJQkycTEhM4GDpZKJcrySBxO8EM/cODA4sWLuVTKWst5xomJicHBQWMMe6dKqYULF/KFWI69CeBzTk5OcjGJz1YdPHiQsiqwfD7f1dXlX/7CO4Ar3XnTcGqEd22apkmS1Ot1D2IAyOVyvb29PPqJS4iWL1/+/ve//8EHH2xvb+eVcHGgUspJodNKrAO4CLoGFWmqK4uXXJhkDFQUIa1TqhIkaRxKFF2+DhdSlhryfnJLSwvLgS+wGh8fX7Jkyfz580844YRVq1bdeuutjIGw781t14zds3vCPhrzbN++fWvWrFm7du2sWbOUUqOjo/fddx+PA/C2n8WFHXjfeez30Cc/+cn777//pJNO4nkMt956K+cEfaaL+Q2AdxuyHGUYhkqpHTt2nHfeeWefffbs2bMBnHPOOddff70QglUL6/Y4jkdGRlpaWvgrPjlWtHmo+sAYGZuKQMDVpSAIAfMSgyqJCM44gJwNAjs2nqe8hqHUpP7tRpxHmpiYmD17NjPMFyCmabpq1apNmzbt37//nHPO8WExG61KpcJSK7OBoi6b0c66dM2aNY8++uicOXOMMWNjY/8B9MgraYRBoiiaNWtWGIbr16/XWp9//vnsedlsFARrYD6evSRk6p13GIOs69evnzNnTn9//5w5c5C5ER626+zs9NNy0eCROecQiXLNygCG29KMo+a98K55yQZSsMYQBEgIDFfzrmitRRgEIusDYOHjobG+u4S9pHK53Nvbe+jQoZaWlrlz5zIcHQQBK2FkfhDze+qKWWGNc27OnDkLFy7k6mW2r9PesFLeanJgk8vl2traurq6SqUSG2NOCbCZ9MaVd1KhUOCRiy7LTBtjeNhKrVbr7e2dPXs214b6W+Pr9vT0tLS0THG0oeDXwAQFNzwhEEAmAEg4NCuVhGbaYAmkFhKWrHAYrYU2cuTgwV42PFwB097ezp0BLIJSyrGxMQbz2tra+vr6Hn744Xw+7wObQ4cO5XI5Npy+ONL728wG9pIoa1GcjmxDLQ67QrxLuA7EDzX1m88XKfBsNp6Mx6fyMT2bZ/Ybcrnc1q1bvXrgcnki6u7u5loUj6jz4i1cPucODSsHTTI0NpUg2JcggwFYIuFIOhgxWlNSkqCp7K9HrIioUql4DAvZ4Nd58+bt3LkTgFLqgQce2LNnz8KFC/fu3cvzLubPn88/AOAcvsz61Vw2rY63kQeQf5tclpNnu6CzGQz8V68wq9Uqe2pE1Dijg1MXrFE8/9i0R1HEzekdHR1Syu3bt3OxB+8Yzp20tLRwn4RX3VNOCZAPsOeQAABB1jrZ1O6zpvYmCRLkiADjxsdlXgrANtbfsHwYY9jJYh8KQBzH8+fP/973vnfqqae2t7e3t7cPDQ3t37/fR41HjhxpaWnhg/mh+9nfTAw7s9pnI40M73QN6s5l72dBNvvbV9v4Ql2OjD3kqbNRIdwbxwqcsqpYDpzYx2bV7YHxMAxZ3J1zpVKJi2cbN9/U0gmREtv3O7IEa6QAUougaS+Obl5Fh4WQIAtIcsqNDKu2yME9GyN514bbf1lw2QpySLNs2bL9+/cvXLhw5cqVpVLJDz/zDhcLKCs6nb3cijcN608/HYDTPsddp0cnbEOJpHeX2GPnM3AIJLO3ZflcL0NRfEV2A/P5vC+TZl+Bu5/TbNol98ryV1yGg/LPTqrAmH1HBDRZspiqfX/pIVnOOUiCAyxRgMpEUAiMc9Jn35g9AOI43r17tzeoPBSHb7i7u/vw4cP79u1jT5jNM3tV3AjKotaYXWAYhF9pyQJXKpWm09IAGEXyQBU7Sixb7FuVy2WbTRbwOAYHAsjeuYes78ErAB6hhUzVV6tVPp5RrTAMOWPdCHTTVAWEJGOrZekSK5R0Bk5k3SHNoKadSEoF41KrYOFIPNAnC0rVhWG1yaLAR5599tnnnnvugw8+yMaJfSIPB86aNWvfvn3bt2/nKRmctUWmOVk0fUjK7GFDOKXwiPL5vMyq+7KHOAUg+1ysN9X81zRNf/Ob32zfvn3Dhg179+5l8yGyujjeVVwuqZQaHh62DePZ2LHyXUmsWhi08XadQRgGRryTxTlysiZQNkIwXpW6mspcKHiYUpOoeVClIGgrnYO1ZGjfWF1aG8mpLn1/FDuiq1evvuCCC9atW1csFrnyhp+plJILiQcHBzdv3jwyMsJ9pJ4Zvb29aIgxWCCGh4fvvvvuHTt2PPLII48//vjAwIA7XpjhHdfG8hpGqq+77jouL6nVarVajadcMW94SdxYTERhGHKhjz8nn62lpYUHEvNuYDfN+/lsRPy+4TP7AwA4uJhfb2sMqJlhUvMYbLUjCDIguLrZNyqFTRVNpe7ZbZYNteCrV6+++OKLf/3rX3NFKge+yLRuS0vL8PBwGIYHDx7kXiMA1tply5Z5/UZZRcAHP/jBSqXCXTC1Wu0Xv/iFz/b8Nnnfm+WPM1QuG2nc+L4HXgnnvtjJ4i3I1Xo+wGVudXR0tLe3sy7hYXeq4T257GexAy+y2X3e8APQcNV6jgRg7NSkjiZR8xicWpJwAhBUrqFWiYSwLgs0uQJLZ68E42LS1atXX3TRRffddx/bY69RVTZw47777lu8ePGxY8e8Ep43b97zCjAYfeTUje/v1r81q9KTL7HzpZwqmx7uU16NETaH12z4PQqGDBHzgFR7e7sfWMBgCJ5bCFAoFNgf9MpjyqiTA0lLZrKagyDnXHNfhdbM9lFL5ASgZEWXSOdsIEy2Q31AwvEMy41S6qyzzrrkkkt+/OMfsyNK2QwsZPrw+9///qpVq4aHh/m5t7W1eRjSK2r2hNkossA1pjGeR6VSiXnMVpDFl9FpX0/C/3LRBScrPfIlpRwdHW0Mw/i+SqUSI5HsUnFRn2goyPXT1BqF+FlOCztRzlnrSAjj8JKUYAGnHQhwtmraBRmC5HZgfgosBGyxfPwgpVyzZs0VV1xx1113sfAxROCyqWNRFH3729/es2cPlz1zuOJNLG8IP0jfP7L/AIsul8s+XyuygR46e787O3Rp9pYBPy+aLQjzhhPJyBjM6+H+Uv5NEAQjIyN+MX61DMHydyl7fTTBOkeIxPBk4AhZFuklyGCCNCAHWDs6EZh8GrjndOR5F8PrYQZ4wzA855xz3vGOd9x1113sjrqsKYHNqlLqhhtuGBsbi+OYC2NdA9rnsgpy/2oOL9m/Tc45BiXSbOIV/4YfOrvKlBEfxlfhwJ03wcTEBC/SC6I/LWtvfgkQPbcQwFo7Z84c3gTehD8bkefCsQk3tS2JmsffJjafWYACcoDB6KhGCcoIIueRB98LxJaSEVrPpNWrV7/rXe+68847ZUMzP49eqNVqBw4c4HnqvrWLGko4+GfPHpm1lx3Xl/YuEtsIHy9xjwWyvhiO2oeGhkZHRwcHB+M45snPuVxu8+bNflimyybIsH5iB00pNTk56StD+Lrsafs6gsZbsNaKMKhWLUnC1Hv5msWWJjafhQJIYQOXR7na0altTaXQU0PnOBDiJ8s9olx9Pjk5yQ0gURStWbPmqquuevLJJz0MyaLJrOXHwZVNXtX7YMZ/xYdAjUl+NrfsT/nH6us0hBA/+MEP5s6dOzIy4itJ2A//93//9/nz57/vfe/72c9+duKJJ/JuOHr0qE+TcEWmzGY88MKI6MCBA5TBmewzOudaW1u5aJdtCi9YGxOGYaeqbz4YaetAgpyjoFlsaWayYWraMQwGhm0UCJAluCiaSr+w1Fpr3/Oe9zCY7Av8t27dunnzZkbqvZPsSWdtxGyDve8KgOOcj3zkI319fZztD4LgnHPOed/73jfdKr1dZGSRT8UXffjhh6+44gp/mNb67W9/+/XXX//QQw/t3r07DMN58+aJrNSSjTR7YQC4Sov3Vi6Xu+OOO26//XbvynGbGsfKXH7U6EYYZ3NKDY7WpQISAyWaWDbbxKpKInIgkMUzR1HMBY40gbybyvFMZ2fnddddxyi8Lx295557JiYm+vv7Afh3InliYeI8I8OQ3ndl13p0dPTAgQNbt25taWnZs2fPa1/7Wo+u+DDU24Lnxa+UAYpveMMb7rjjjne+850e5lRKzZ49+13vetfdd9/NNUDsUbOjxP96d4yTmD4fyifnHcy3SUQ8ZY39L9eQCHFEAaH/GDkDCEnWPP9FaP8H1NQpOxKOBICDo0FOgKBITvm0XKBDRF1dXUEQMJJXr9c5OE7TdMmSJew/sxvl2UBEvviGYX0fWnhX2Tk3a9as1tbWzs7Onp4eluPjLDAzeH4D+TMopTo6Ou666y6eAOFnsIVheOWVV/b09PgUArdW+IZVP1XPJzG11oVCQUrp6+nZSyeiqXE7DaEjAAIcWSnsoUHolMvfX5IN4M5YCMVLPlpWAZFwkRBT5kdkFaxz585lF0ZkL44LgmDz5s27du1io+jT9V4PM7hP2RtxZMP8A2S7hxFNIiqVSixbjd5N4zob4X6mRn94586dKnvZFjNj5cqVc+fO5dEwPshxDcNchBD1er1YLPpJEiZ7Oybfgshe1cb5sTR7sap3Ep1zYSAGRpxJYYyBIPcSdLKsBaBANjU4Osp3QA5g3cVSpbXmkazIIEP2Zjds2PDkk08++eSTABoH2SGTYGRzAdg98RYUAOd/uITdZt1j/N3jetHP2xz8A2vRMAzvuecev2C+xKJFi1asWMGvyfHHVyoVD1nzIqMoeuihh/bt2/fwww+vW7cuTVN+8QofwEqIHQjP4KnFQAly1urYyclKKARAaN646CYW3TnAGsi0nqpDR/XyRYGAsRaiYQ5SuVzmYTa8uxn4BXDLLbd4R8wn3j1xzlwpxYMqPaDIf3XZEAWtNZdD+3gU09vgRjYjqxJZsGDBzTff/Hd/93eU1ehzPcYFF1xwzz33EJGv4KlWqyyOyIbvtbS0bNmyBVlzsFKKQTfeJWxfisWibOgkZj+OIJUSidFC5Scmg9mdKYAmTtlpGoOdgzapFIjjcGLIyCU5colGDtp42D1N09mzZ7NnxC0h/KcTTzzROeerpp8neb4hJY5jP/jbA/fMeDZ4nvG+Z/e3yTPVu9Dei2Y53rt37+LFiwGwEo7jeOXKlQsWLBgeHu7o6PClI8YY3qZslaWUPT093j9gzeyrVlhj5/P5xvkNlIFZzjkIcmRTk4OpIJRwplmIdPPywYpUSOQwUYnCUgnGahGRS72u4xqJtrY2zg1wUt1mfWbsKrP68pqQmc35RC6r41wvO7Eye58s5/x9msHrAB/UsuUz2dAW76j7GJ29bmMMv6OD+1pN1q6+ePFifvekyV6ywbegG6Yu+gDP23iWY49xEhGPmuA1sOoOgoCQGluQAi6tjNUjKwHjXopIFqyDgwXG6pHOpZACzgRO+qLXWq02ODjIr39t9HGeR/6hs0Azg5E5WV7F+TaCNE35fUoiq1422RvidTYZnGWIU0PchcA6k3UJb0H20bq6ur7xjW94SAtZmuTCCy/kjCSDLVywwVfkuNY2vEuRIyVWNj7it9a+973vnTNnDq/BKxtHkGSdcwjl2ASEwEt00h3clM8wMpoXhUTIKcfaZG8W4lo4fhGHr5T4bWIPlivWKEuw+wydL7JpzF74pJBHjjxa8rwIlRnTGKUAYIib+9uI6MEHH+zv77dZXR+vf8WKFWvWrOHBEvwWYd497F17W8v35W2zyXqZcrncZz/72d7e3vvvv5/nC/jdQ0RwqRACeTk8wTPkqIl8adqJjAQsJMnJMRnmHDkAVospXpqsKdSL73TnYeeLJdiraJGVTfFLk2xWVs6iyW3zzHKOWJAl4/hC7H77VDQH3z5y5RXyZsrlcl1dXZs2beLhPQA4/D3ppJN6e3uHh4ddA5LMHoDKXlnOVUG+ttcHS1LKBx544N577x0dHa1Wq/yGHpfVcRJJa7VUCspWasJahgNfghUdjFU+d1aUy9JnLL7ek2Rs67jE496ttYVCgZMHjfqWR+l43rDG5odrs+otVtR8GKtoX7bBRzLgwCx3WSU9o8S1Wu2EE074xS9+wf5zkM28JKLLL7+c28B5egRbYk5jc1jvE5cqe5cIK5IjR468973vXbRo0aZNm/gFuB7p/A82erOoaV60tLzrTKEl0Yk0zgZCKgtLUxWKURStXLmSh0yNj49PV1XDAsGGyjlXKBS4+o7bWNavXz9v3rxyueyy3qR6vb548eIHH3yQn1pLS8v27dt7enq4uorNIRfcsMQsWLDgoYcemjNnTq1WK5fL3NBw4MAB/24zpdRtt932zne+s7W1lUtoXdb1e/XVV2/YsCGfz+/YsWPr1q0AuEvFVxV6085xXZIkbW1tt9xyy7vf/e5vfOMbJ510Eu8YdgbFVMrEShkYncLIYt4Kwe+1a9q0u2Z2NpCEtXb2rDSZENQtrXMKFiR9aJHP5y+++OJ/+qd/2rVr1/Dw8HFPwvaSxYLjomXLlrEQn3HGGZdccslNN9108ODBkZERru0qlUqLFy/28Mjs2bNvvvlmnmPV39/PeyuXy5100kmMQ82ZM+eiiy769Kc/vX///oGBAbbHCxYsKBQKKpsDdOaZZ55//vk33XRTX18fvxtYKdXd3c2bo7Oz83vf+97hw4e7u7sPHDjAs++QQTFBNu7dK/Ply5evW7du8eLFrBI4r6WzCRNKKVDgXIKa7W5zIEA0s2qneXOyHBAKHdvDI90nvv/EtSuVgRPSBnKqXo4Nj7V2eHjYV1AcZ0GZz4LMwXHOcVcZa8Xh4eE0m+/rg+a5c+dSNo0rSZJKpcK+twexrbV+xrzWmhPy3mNnLIJn8LCLZIwZGhpS2QQBTlzm83mfFqxUKr4QGtnIRQ4FkSEnjFtJKYvFIgPU/lHojMghRUimvGNn+shXkjUnHxYkYWyzJLiJg9BEomyYkMvJc647x5rJNFB5UbBS5yAM0tSaHNpSqllKIhukv9Pg3EYMpDGYOc5ypgk2aJrrTvf74+Kd/8Hvp6MwzMUudqkNKKi7qk5iSoQmGdvYWWWTpG9fMvGjvcUibAAVK4jmvDipeUY+cGENyCnK6Q++/tAzFZE3JEQS2ZggUxNIareybCmEImN/x4y2x57QkI04LslpiJ5L//krPo+mO/90pOqKACgKcgAEbCF1MLYuTC0yOFir/7f3pflZsE6oOGhaf38zGawdlDAmTcdx+bn1wV06lpMmMTUqpDYNg5hkmaS0ZpI06Rf+2pjpHvR09L89z3/ytL/7A3kuxWGq0/FSEMUVMmlVqDosEVGI1lhW7dGWd19kVAJjHJR5KQ5hcRFgc4YQBKJ3zpHr3xMPpW3GEUysoUGtQqVpvRjKdpARKnqh53/eQ//fMmA6IOW3T/ifv24jTXf+6UhIp4JSrR5akEJrUhaCKhKUGDFcTt5+bvnUJUeMVVI6JNI2D6tsmg22CsIBdYHQOoGRiVL3WxeeujpoN7kknyaIQphAFFMTq5xxzskXqKU9J/6Txm86GzxdMnE6TjfLBhMsSWd1FNfLdV2tOyKjC2muLMt7d9v936meMHdQkkQqIRPrmjaMtIkqOoIUIIu0RBKtXeWffXFo5xPBaBBrZ0o2DGGFQAhQRYYovtDTTycZdhr6DySPD/hPnme66/5vdfvzyCISdQq0S9J6IILQiCBSk7J+aFf0o/9RmzVvUNoSnIOxqYTQz8+Z/s7UvIS/i5PYQgROJUgQaPWmtQPf/af06Q0OkAnq5BRRLMgFQpr0BV93Ou6+UFV53K/8Dud5oSSEqLryuK6SzCEhSmOkdHAXbrt+7I2vP5ZPSbuqI4vAKgMtj9/c/DtQ81Q0AAVRA3LSOUExEGgI9+ATi974t10dp4cnBJUOlSsTEkOlkMi9MIzFq1z3XN3oXqAKbZbfNN35p6NUTKS6zepBVStMBhN7J9vV/vQH/0//ZeePIg1AqVXkjJNCQhurIJpkhZsXB09HEscmWv7f78/99L+29Jys5rZoOCURORErKUEUWx2KQujSlGrGhUpMjY3Ec7uPGNgz2cxB/3ubFdH5RCyTANVkrGJrbRgrRJZEVZp2mPqz9arPXej/0RP1/CbRGKk3PAZnh8v1CZNW+qNI48NXjvzXD4wt6iKYpgnrcWnGGWwNiZZiEperw+GXfrL4k1/vWnFqPZKFSNUg2ojKDlKpXOxMYIUGKdKeZ9QwzRDZEAiXTRX01ed8oWcfMbvZRutQphV6zexCa1dZl5NSW24idnl1fEa6aUpVp5f445+nbo6P0FWs7Ajik2anZ5+crD55cnbXJAyMxjSAXtNoxhmcWgpyAWxiRF7a2vbti676n91bJitnzO6g2FoZFHKyntZLNlcTk6SK0j2fu56XLqur4pQ+D1FoPLjR0yajy7Erj9duvVF/5D1xGANhCGetPT5CRNPA8tOr4uP/XjS+9ajxuwQQXCKtMVICJKyxoGaWXx2XZl5FG0BCCygdGBgSTkj3nZ8uf98/5ZatCDrDQKskp6MkF0tVojh18tmyJmSlHb7l12tmnpDiR4yiYboKi7jQNnZucLh2ycrq3V/WIlZJTgcOZKaRyOmKzV+wzX6uZHseW1gLERAoMFpLZSElahFU9QWe/4XRjOcjQYDNKxNAOqlIKOfC4N1vffrQ9/ac2lN/+GikU2GVgpNpGUZp9jnxXN3onlsNCYDzd342SqMnzD+kQiSuKnLu15vy5HKQOtSgNA+H439gp/mYF/aZ7i9CCQVnnLEG3B2nBXIzy138HiTYCehECGUFgQygCcIhV4KpQ+pfbOy59OZFbXMqi3PKwBVUqEGUVWyhQYKZeY2KulF7+8E5XoKlFdbVJ+vVyYng0I8qJ3QR4sCqmphOgqd7odwLVaHPs6nZ150EKbgETpMIHISwSWhcPZhhGzzjEkwmH0QWEmTgTKiVg1RIjDMaVrz5tSNjtz/yN2+I1m9SjiLttJfCRldLPLeT2itwIuKWITzXowYgFQkdhQKhDAfHCYGGTEkrKHHcjxM47geKXtjHPffDk/AdKBGuCgKJKA+XswYijIOomUPtjku/BxVdQwrpoCVspGUAK6xWNRsCFqjaqIj/9oFNT3xtX8lU1w9MSacnNHRJe1vbSL42tlFLA6gIGyubupyxIwcOFZMUxmgiA9Pwsc9+yOG4H1g3zYee/TSoYkf0fC1PZIksLBHBOiRVpKkwgHW2qW1Ix6WZZzBfxEI5SGvJQDirLKQlOAeZSqlQSVeddOzuz+38wZ8MP/ZYMqqVlc7pFjgTK5icKuSjWq6qgigvCsIara1FShLGRNbaXC7nG8x94a1wgLFK58kFO54xgiClgHDszU59/o+ogYkNO4KcPb4ukJi6ugCUgbCwTUMz/gP6vTD4eGSdRORAQGoQEGJZUOmb37b/2A92n1kafGqXMTisUxvavK7FcKKNSqEq1Gy15pwo1o0tkFNRoLmIgqfhUcP4FQUDBQQ1i+g3T5AMYGGb2fTzMqGZD5OmIRfApFO7XwaAE1ZbEShAA/IXTy647BOd7T3R/EJcoDBGmANqrlY1VZB0ukJOKplLUyMEuFyZ+1GRudyEtO5ASTJad/nEDt5fDbUVFMI175U1Lwd60SSYrLIaSgYESmuAJBEIxAEAbYM3rn5m/M4nrzt/6MmNNJxq6yZsvk7C5F0U6FpEXQBSXVUKzjlugOAyVS/BZIWBUy4o5HU5FRMjoZAE+wcnwS8ag6EplAAgKFIBYCycQKkGC+XqSpPIy//76t1bbx9oIWwat5VyUqNcJQQiaBML5ANVCtIQ2Sx5mw2Dz9BoKSGVk4GTEMnQEAEC4g9LfPFiMpjnUNgUZCmEhUsTSmswgXJOIMyFErqCk5ccfPQLm/71XcnmJ4WumRYpbIJQijQe0TqZlM+WTjJX+T1cQggrXEiRVBpxnlyw9wgACznjXutLjV48BkMACiEgnK1LAQR5BCGkMQ4Wpo5YqggoI5X2T9+2+9APd7+2t77t6TANCwBU2BU7F1HgcQ+ZvdqUf7BwAalYGiMJLnhyt3ZwTXqTycuJXjQGG6X1FEyYCmEA2NQCAUgIlQMcUIcDVBAkBomZ2x5/86ZN3/3UwOEd4a5xnSLNWTNppySYz6myV7ZrrbUFIGKQy9cJavszFgI6aeorDF4O9KJ50S+UUg2hAklIdf5/fKP3098KZy0ThXBS2YIx40IG1gnYQBiCUTFN1GNjtLYUunSiXJe1eiW5pxoUCOYPS0u/iCr6hRERpHKwqQgn/v6/7Fz/zWOvKbm9O/LGmNQVSESBCAKysbNJqRZEFqQFGSISDrkohRblSiFN/rC4i5cRg1U+B6sRFaSNYHOnLD764//x1Dc/Pr5zj65WZC2JxypVG7hiCFmx1rUFUlkDZ+qEgGAAOjAgg+Blc7/NopfNDet63SZAUnMq0UldaIoCvPONBw//YP8FS+K9u4IglKpaJI28hEuSIMgXCiWlNJEkGwDprv66a+J8opcJvWwYrJQ0EsYSWRUASB0kKSV6u/Qdn3n6l18u792DzcNxzSX1MHKoal3PF0MShqQikkK67Ydyf3hO9MuHwWligiCUgUWVrAhNBFQcYKEdLC46bVD/fN+n31PbvSepjWkVtkS5INa1fKE10YmQ1hp6ZFMoZjj5+hKkl40XDScACyKHkBDDIY1KLimHShltJDkgB1vffrD1yo/P3T3gFs/LOVkHWZfS0MDRxAWiWh7+tcn/HjI4LyV62Uiwk2QDpHDkYkvKBPkgTkPAai0dQARRh5SvWTyx6dt77vy/6n1949WqlFIamPa2HiFNDdHk5B8Wd/EyYjBZIzQCAAThtNQ1UAy+AXKwDgawRhhE1r3zTQf77zp66Sq3f7sJhezIRcIhh/zeAwGIjv95hdLLhsEvlObOMl/5+K5ffaHatz/cPIFZswKjavuGmtbz83KhVyyDTc0I4NzVg9Wfbv/nd5T3HexIdcvOvhTOHf/zCqWXj5P1QslILYxyIonyISq798y++vOdTzy5v35/7cVe2e+VXrkMpgDQMM4EkBKooyZxx7/P+YsrBl7slf1e6ZXLYCaRr9tajoSFrRBaqAAz47XmLyl6xdpgWIJCXK5FJCCsSKnFhIjTF3tZv296xTLYBgoJonyeRB4gFJxBgtwfHINfsQlwYVIIALWpN2kbSAKaM3vq5USvWAl+lZheZfArnP5/1qkwv94Y9dsAAAAASUVORK5CYII=" alt="Mesa Tática">
+        <h1>Mesa Tática</h1>
+      </div>
+
+      <div class="tb-group">
+        <label>Primária<input type="color" id="kit-primary" class="swatch" value="#000000"></label>
+        <label>Secundária<input type="color" id="kit-secondary" class="swatch" value="#ffffff"></label>
+        <label>Número<input type="color" id="kit-numcolor" class="swatch" value="#ffd400"></label>
+        <label>Estilo
+          <select id="kit-style">
+            <option value="solid">Lisa</option>
+            <option value="stripes-v" selected>Listrada (vert.)</option>
+            <option value="stripes-h">Listrada (horiz.)</option>
+            <option value="halves">Meio a meio</option>
+            <option value="ring">Aro colorido</option>
+          </select>
+        </label>
+        <button class="btn btn-ghost" id="btn-galo-colors" title="Aplicar cores oficiais do Galo a todos">🐓 Cores do Galo</button>
+        <button class="btn btn-ghost" id="btn-apply-all" title="Aplicar cor/estilo atuais a todos os jogadores">Aplicar a todos</button>
+      </div>
+
+      <div class="tb-group">
+        <label>Tamanho (campo)<input type="range" id="kit-size" min="0.6" max="1.8" step="0.05" value="1"></label>
+      </div>
+
+      <div class="spacer"></div>
+      <span id="save-status"></span>
+      <button class="btn btn-primary" id="btn-add">＋ Adicionar jogador</button>
+      <button class="btn" id="btn-opponent">🆚 Adversário</button>
+      <button class="btn" id="btn-director">📋 Modo Diretor</button>
+      <button class="btn btn-ghost" id="btn-reset" title="Resetar para o elenco padrão">↺</button>
+      <button class="btn btn-ghost" id="btn-update-squad" title="Atualizar elenco a partir de dados do Transfermarkt">🔄 Atualizar elenco</button>
+    </div>
+  </header>
+
+  <main id="main">
+    <section id="pitch-col">
+      <div id="field-head">
+        <h2>Campo</h2>
+        <span class="count-badge">No campo: <span id="field-count">0</span></span>
+      </div>
+      <div id="field-area-row">
+        <div id="side-column">
+          <div id="camera-slot" title="Espaço reservado pra câmera da live"></div>
+          <div id="status-boxes">
+            <div class="status-box">
+              <div class="status-box-head">🟥 Suspensos</div>
+              <div id="suspended-list" class="status-box-list zone-drop" data-zone="bench"></div>
+            </div>
+            <div class="status-box">
+              <div class="status-box-head">🚑 Lesionados</div>
+              <div id="injured-list" class="status-box-list zone-drop" data-zone="bench"></div>
+            </div>
+          </div>
+        </div>
+        <div id="field-wrap">
+          <div id="field">
+            <div class="mid-line"></div>
+            <div class="circle"></div>
+            <div class="center-dot"></div>
+            <div class="box left"></div>
+            <div class="box right"></div>
+            <div class="boxs left"></div>
+            <div class="boxs right"></div>
+          </div>
+        </div>
+      </div>
+
+      <div id="bench-panel">
+        <div class="panel-head">
+          <h2>Banco de Reservas</h2>
+          <span class="count-badge" id="bench-count-wrap">Reservas: <span id="bench-count">0</span></span>
+        </div>
+        <div id="bench-list" class="zone-drop" data-zone="bench"></div>
+      </div>
+    </section>
+
+    <aside id="director-panel" class="hidden">
+      <div class="director-head"><h2>📋 Modo Diretor</h2></div>
+      <div class="director-cols">
+        <div class="dcol sell">
+          <h3>Vender / Dispensar</h3>
+          <div class="zone-drop" id="zone-sell" data-zone="sell"></div>
+        </div>
+        <div class="dcol loan">
+          <h3>Emprestar</h3>
+          <div class="zone-drop" id="zone-loan" data-zone="loan"></div>
+        </div>
+        <div class="dcol target">
+          <h3><span>Reforços / Especulações</span><button type="button" class="mini-add" id="btn-add-target" title="Adicionar reforço/especulação">＋</button></h3>
+          <div class="zone-drop" id="zone-target" data-zone="target"></div>
+        </div>
+      </div>
+    </aside>
+  </main>
+</div>
+
+<div id="modal-overlay" class="hidden">
+  <div id="modal">
+    <h2 id="modal-title">Adicionar jogador</h2>
+    <div class="preview-stage">
+      <div id="preview-jersey-frame" class="jersey-frame">
+        <div id="preview-jersey" class="jersey" data-style="stripes-v" style="--size:100px;--primary:#000;--secondary:#fff;--numcolor:#ffd400;">
+          <span class="num">00</span>
+        </div>
+      </div>
+    </div>
+    <form id="player-form">
+      <label>Nome</label>
+      <input type="text" id="f-name" required maxlength="28">
+
+      <label>Número</label>
+      <input type="number" id="f-number" min="0" max="99" required>
+
+      <label>Posição</label>
+      <select id="f-pos">
+        <option value="GOL">Goleiro</option>
+        <option value="ZAG">Zagueiro</option>
+        <option value="LAT">Lateral</option>
+        <option value="VOL">Volante</option>
+        <option value="MEI">Meia</option>
+        <option value="ATA">Atacante</option>
+      </select>
+
+      <div class="color-row">
+        <div class="cwrap"><label>Primária</label><input type="color" id="f-primary"></div>
+        <div class="cwrap"><label>Secundária</label><input type="color" id="f-secondary"></div>
+        <div class="cwrap"><label>Número</label><input type="color" id="f-numcolor"></div>
+      </div>
+
+      <label>Estilo do botão</label>
+      <select id="f-style">
+        <option value="solid">Lisa</option>
+        <option value="stripes-v">Listrada (vertical)</option>
+        <option value="stripes-h">Listrada (horizontal)</option>
+        <option value="halves">Meio a meio</option>
+        <option value="ring">Aro colorido</option>
+      </select>
+
+      <label>Tamanho do botão (só vale em campo)</label>
+      <input type="range" id="f-scale" min="0.6" max="1.8" step="0.05" value="1">
+
+      <label class="check-row"><input type="checkbox" id="f-injured"><span class="mini-badge mini-badge-injury"></span> Lesionado</label>
+      <label class="check-row"><input type="checkbox" id="f-suspended"><span class="mini-badge mini-badge-suspended"></span> Suspenso</label>
+
+      <div class="modal-actions">
+        <button type="button" class="btn btn-danger hidden" id="btn-delete">Excluir</button>
+        <button type="button" class="btn" id="btn-cancel">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Salvar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div id="update-overlay" class="hidden">
+  <div id="update-modal">
+    <h2>🔄 Atualizar elenco</h2>
+    <p class="update-explain">
+      Este é o modo manual — usado quando a busca automática ainda não está configurada, ou não deu certo agora. Ele não acessa o Transfermarkt sozinho (o site bloqueia acesso automatizado), mas você pode colar aqui um JSON já pronto no formato <code>[{"number":"6","name":"Renan Lodi","position":"Lateral Esq."}, ...]</code>. Eu mapeio a posição automaticamente (goleiro, lateral, zagueiro, volante/meia central, meia, ponta/atacante/centroavante) e uso "00" pra quem vier sem número.
+    </p>
+    <a href="https://www.transfermarkt.com.br/atletico-mineiro/startseite/verein/330" target="_blank" rel="noopener noreferrer" class="update-link">Abrir página do Atlético-MG no Transfermarkt ↗</a>
+    <textarea id="update-json" rows="8" placeholder='[{"number":"6","name":"Renan Lodi","position":"Lateral Esq."}, {"number":"11","name":"Bernard","position":"Meia"}]'></textarea>
+    <div id="update-error" class="update-error hidden"></div>
+    <div class="modal-actions">
+      <button type="button" class="btn" id="btn-update-cancel">Cancelar</button>
+      <button type="button" class="btn btn-primary" id="btn-update-apply">Atualizar elenco</button>
+    </div>
+  </div>
+</div>
+
+<div id="opponent-overlay" class="hidden">
+  <div id="opponent-modal">
+    <h2>🆚 Escolher adversário</h2>
+    <div class="opponent-team-list">
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn" id="btn-opponent-cancel">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<div id="opponent-edit-overlay" class="hidden">
+  <div id="opponent-edit-modal">
+    <h2>Editar nome</h2>
+    <input type="text" id="opponent-edit-name" maxlength="24">
+    <div class="modal-actions">
+      <button type="button" class="btn" id="btn-opponent-edit-cancel">Cancelar</button>
+      <button type="button" class="btn btn-primary" id="btn-opponent-edit-save">Salvar</button>
+    </div>
+  </div>
+</div>
+
+
+<script>
+(function(){
+"use strict";
+
+/* ============ constants ============ */
+const BASE_SIZE = 62;
+const BENCH_SIZE = 26;
+const ZONE_SIZE = 30;
+const POS_ORDER = ['GOL','ZAG','LAT','MEI','ATA'];
+const POS_LABELS = {GOL:'Goleiros',ZAG:'Zagueiros',LAT:'Laterais',MEI:'Meias',ATA:'Atacantes'};
+const DEFAULT_KIT = {primary:'#000000', secondary:'#000000', numberColor:'#ffd400', style:'solid', sizeMult:1};
+
+const FORMATION = [
+  {pos:'GOL', x:8,  y:52},
+  {pos:'ZAG', x:32, y:26},
+  {pos:'ZAG', x:26, y:52},
+  {pos:'LAT', x:32, y:78},
+  {pos:'MEI', x:53, y:40},
+  {pos:'MEI', x:53, y:61},
+  {pos:'LAT', x:73, y:8},
+  {pos:'ATA', x:75, y:31},
+  {pos:'MEI', x:75, y:65},
+  {pos:'ATA', x:73, y:88},
+  {pos:'ATA', x:88, y:51},
+];
+
+// versão espelhada da formação, usada pelos adversários (que atacam pro lado
+// oposto) — sem isso, os 11 genéricos caem exatamente em cima do time da casa
+const OPPONENT_FORMATION = FORMATION.map(slot => ({...slot, x: 100 - slot.x}));
+
+// numeros dos titulares — formação 3-2-4-1 padrão, sempre lida da direita pra
+// esquerda: GOL(Everson) / linha de 3 (Natanael, Ruan, Lyanco) / dupla de
+// volante (Castaño, Maycon) / linha de 4 (Cuello, Fred, Bernard, Lodi) / ATA
+// (Cassierra). Encaixada nos mesmos 11 pontos do campo (100% editavel/arrastavel).
+// Goleiro fica atrás (x baixo, perto do próprio gol) e o atacante na frente
+// (x alto), já considerando que o adversário entra espelhado do outro lado.
+const STARTER_NUMBERS = ['22','13','4','2','15','8','6','11','7','28','9'];
+
+// abrevia o primeiro nome (Mamady Cissé -> M.Cissé); nomes de uma palavra só ficam como estão
+function abbreviateName(full){
+  const parts = String(full||'').trim().split(/\s+/);
+  if(parts.length < 2) return full;
+  return parts[0].charAt(0) + '.' + parts.slice(1).join(' ');
 }
 
-// Mapa de códigos de posição -> palavra em inglês que o app já reconhece.
-// Só confirmei "M" = Midfielder pelo seu exemplo; se a API usar outros
-// códigos além de G/D/M/F, me diga quais que eu ajusto esse mapa.
-const POSITION_MAP = {
-  G: "Goalkeeper",
-  GK: "Goalkeeper",
-  D: "Defender",
-  M: "Midfielder",
-  F: "Forward",
-  FW: "Forward",
+// elenco base — atualizado a partir do site oficial (atletico.com.br/futebol/masculino/elenco), mar/2026
+
+// elenco base — atualizado a partir do site oficial (atletico.com.br/futebol/masculino/elenco), mar/2026
+// elenco base — atualizado a partir da API (bzzoiro), com lesões. Dois jogadores com número
+// duplicado na resposta original (P.C.Rodrigues #1 e I.Román #17) ficaram de fora — conflitavam
+// com Delfim e I.Gomes, que já tinham sido confirmados por outras fontes antes.
+const SQUAD_RAW = [
+  {n:'1',name:'G.Delfim',pos:'GOL'},{n:'22',name:'Everson',pos:'GOL'},{n:'31',name:'Robert',pos:'GOL'},
+  {n:'3',name:'L.Duarte',pos:'ZAG',injured:true},{n:'4',name:'Ruan',pos:'ZAG'},{n:'13',name:'Lyanco',pos:'ZAG',injured:true},{n:'14',name:'V.Hugo',pos:'ZAG'},{n:'40',name:'Vitão',pos:'ZAG'},{n:'47',name:'Rômulo',pos:'ZAG'},
+  {n:'2',name:'Natanael',pos:'LAT'},{n:'6',name:'R.Lodi',pos:'LAT'},{n:'23',name:'A.Preciado',pos:'LAT'},{n:'36',name:'Pascini',pos:'LAT'},
+  {n:'5',name:'Alexsander',pos:'MEI'},{n:'7',name:'Fred',pos:'MEI'},{n:'8',name:'Maycon',pos:'MEI'},{n:'20',name:'Patrick',pos:'MEI'},{n:'21',name:'A.Franco',pos:'MEI'},{n:'25',name:'T.Perez',pos:'MEI'},{n:'30',name:'V.Hugo',pos:'MEI'},{n:'38',name:'Índio',pos:'MEI'},{n:'39',name:'M.Cissé',pos:'MEI'},{n:'48',name:'Gutte',pos:'MEI'},
+  {n:'10',name:'G.Scarpa',pos:'MEI',injured:true},{n:'11',name:'Bernard',pos:'MEI'},{n:'15',name:'K.Castaño',pos:'MEI'},{n:'17',name:'I.Gomes',pos:'MEI',injured:true},{n:'19',name:'Reinier',pos:'MEI'},
+  {n:'9',name:'Cassierra',pos:'ATA'},{n:'18',name:'T.Borbas',pos:'ATA'},{n:'27',name:'A.Minda',pos:'ATA'},{n:'28',name:'T.Cuello',pos:'ATA',injured:true},{n:'29',name:'C.Soares',pos:'ATA'},{n:'92',name:'Dudu',pos:'ATA'},
+];
+
+// times adversários — vermelho sólido, sem número, só existem em campo (não vão pro banco/modo diretor)
+const OPPONENT_RED = '#c0392b';
+const DEFAULT_OPPONENT_COLORS = {primary:'#FFFFFF', secondary:'#FFFFFF', numberColor:'#000000', style:'solid'};
+let teamColors = [];
+let teamColorsLoaded = false;
+let opponentColors = {primary:OPPONENT_RED, secondary:OPPONENT_RED, numberColor:'#ffffff', style:'solid'};
+
+async function loadTeamColors(){
+  if(teamColorsLoaded || !TEAM_COLORS_FEED_URL) return;
+  try{
+    const res = await fetch(TEAM_COLORS_FEED_URL, {cache:'no-store'});
+    if(res.ok){
+      const parsed = await res.json();
+      if(Array.isArray(parsed)){ teamColors = parsed; teamColorsLoaded = true; }
+    }
+  }catch(err){ /* segue com a lista vazia — cai no branco padrão */ }
+}
+
+function findTeamColors(name){
+  const n = String(name||'').trim().toLowerCase();
+  const match = teamColors.find(t => Array.isArray(t.names) && t.names.some(alias => String(alias).toLowerCase() === n));
+  if(!match) return {...DEFAULT_OPPONENT_COLORS};
+  return {
+    primary: match.primary || DEFAULT_OPPONENT_COLORS.primary,
+    secondary: match.secondary || match.primary || DEFAULT_OPPONENT_COLORS.secondary,
+    numberColor: match.numberColor || DEFAULT_OPPONENT_COLORS.numberColor,
+    style: match.style || DEFAULT_OPPONENT_COLORS.style,
+  };
+}
+// nome de exibição no seletor de Adversário — só o texto muda, cor/escudo/id
+// continuam batendo pelo nome real (ex: Cruzeiro aparece como "Rival")
+const OPPONENT_DISPLAY_OVERRIDES = { 'cruzeiro': 'Rival' };
+function opponentDisplayName(name){
+  const key = String(name||'').trim().toLowerCase();
+  return OPPONENT_DISPLAY_OVERRIDES[key] || name;
+}
+const OPPONENTS = {
+  // sem times curados por enquanto (sem escudo/cor) — a lista fica só com
+  // os próximos adversários buscados via feed (ver dynamicOpponents).
 };
 
-// A API pode devolver o array direto, ou (mais comum, típico de Django REST
-// Framework, que é o que o esquema "Authorization: Token" sugere) um objeto
-// com paginação tipo {count, next, previous, results:[...]}. Tenta reconhecer
-// os formatos mais prováveis automaticamente.
-function extractList(raw) {
-  if (Array.isArray(raw)) return raw;
-  const candidates = ["results", "data", "squad", "fixtures", "players", "player"];
-  for (const key of candidates) {
-    if (raw && Array.isArray(raw[key])) return raw[key];
-  }
-  return null;
-}
+/* ============ state ============ */
+let players = [];
+let globalKit = {...DEFAULT_KIT};
+let editingId = null;
+let opponentTeamKey = null;
+let opponentLabel = '';
+let opponentPlayers = [];
+let dynamicOpponents = []; // próximos jogos buscados via feed (nome + data)
+const hasCloudStorage = !!(window.storage && window.storage.get && window.storage.set);
+let hasLocalStorage = false;
+try{
+  const __t = '__galo_test__';
+  localStorage.setItem(__t, '1');
+  localStorage.removeItem(__t);
+  hasLocalStorage = true;
+}catch(err){ hasLocalStorage = false; }
+let saveTimer = null;
 
-async function fetchApi(path) {
-  const res = await fetch(`https://sports.bzzoiro.com/api/v2/${path}`, {
-    headers: { Authorization: `Token ${TOKEN}` },
+/* ============ helpers ============ */
+function clamp(v,min,max){return Math.min(max,Math.max(min,v));}
+function uid(){return 'n'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
+function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+
+function buildDefaultSquad(){
+  return SQUAD_RAW.map((item, i)=>{
+    const idx = STARTER_NUMBERS.indexOf(item.n);
+    return {
+      id:'s'+i,
+      name:item.name, number:item.n, pos:item.pos,
+      primary:DEFAULT_KIT.primary, secondary:DEFAULT_KIT.secondary, numberColor:DEFAULT_KIT.numberColor, style:DEFAULT_KIT.style,
+      scale:1,
+      injured: !!item.injured,
+      suspended: !!item.suspended,
+      location: idx>-1 ? 'field' : 'bench',
+      x: idx>-1 ? FORMATION[idx].x : 50,
+      y: idx>-1 ? FORMATION[idx].y : 50,
+    };
   });
-  if (!res.ok) {
-    const body = await res.text().catch(() => "");
-    throw new Error(
-      `API (${path}) respondeu ${res.status} ${res.statusText}` + (body ? ` — ${body.slice(0, 300)}` : "")
-    );
+}
+
+// monta titulares automaticamente: preenche os 11 slots da formação (por posição)
+// com os primeiros jogadores disponíveis de cada grupo; o resto vai pro banco.
+function autoPlaceStarters(pool){
+  const byId = new Map(pool.map(p=>[p.id, Object.assign({}, p, {location:'bench', x:50, y:50})]));
+  const available = pool.slice();
+  const usedSlots = new Set();
+
+  // 1) tenta usar exatamente os titulares preferidos (STARTER_NUMBERS), na ordem certa
+  STARTER_NUMBERS.forEach((num, i)=>{
+    const idx = available.findIndex(p=>p.number===num);
+    if(idx>-1){
+      const chosen = available.splice(idx,1)[0];
+      const t = byId.get(chosen.id);
+      t.location = 'field'; t.x = FORMATION[i].x; t.y = FORMATION[i].y;
+      usedSlots.add(i);
+    }
+  });
+
+  // 2) completa qualquer ponto que sobrou (número preferido não encontrado) por posição
+  FORMATION.forEach((slot, i)=>{
+    if(usedSlots.has(i)) return;
+    const idx = available.findIndex(p=>p.pos===slot.pos);
+    if(idx>-1){
+      const chosen = available.splice(idx,1)[0];
+      const t = byId.get(chosen.id);
+      t.location = 'field'; t.x = slot.x; t.y = slot.y;
+    }
+  });
+  return Array.from(byId.values());
+}
+
+// aplica a escalação real (números dos titulares, na ordem que vierem) nos 11 pontos
+// do campo; qualquer ponto que sobrar (número não encontrado no elenco) é completado
+// pelo preenchimento genérico por posição, igual o autoPlaceStarters.
+function applyStartingXI(pool, numbers){
+  const byId = new Map(pool.map(p=>[p.id, Object.assign({}, p, {location:'bench', x:50, y:50})]));
+  const matchedIds = [];
+  (numbers||[]).forEach(num=>{
+    const player = pool.find(p=>p.number===String(num).trim());
+    if(player && !matchedIds.includes(player.id)) matchedIds.push(player.id);
+  });
+  matchedIds.slice(0, FORMATION.length).forEach((id, i)=>{
+    const t = byId.get(id);
+    t.location = 'field'; t.x = FORMATION[i].x; t.y = FORMATION[i].y;
+  });
+  if(matchedIds.length < FORMATION.length){
+    const already = new Set(matchedIds);
+    const available = pool.filter(p=>!already.has(p.id));
+    FORMATION.slice(matchedIds.length).forEach(slot=>{
+      const idx = available.findIndex(p=>p.pos===slot.pos);
+      if(idx>-1){
+        const chosen = available.splice(idx,1)[0];
+        const t = byId.get(chosen.id);
+        t.location = 'field'; t.x = slot.x; t.y = slot.y;
+      }
+    });
   }
-  return res.json();
+  return Array.from(byId.values());
 }
 
-async function getSquad() {
-  const raw = await fetchApi(`teams/${TEAM_ID}/squad/`);
-  const list = extractList(raw);
-  if (!list) {
-    const keys = raw && typeof raw === "object" ? Object.keys(raw).join(", ") : typeof raw;
-    throw new Error(`Não achei a lista de jogadores na resposta. Chaves recebidas: [${keys}]`);
+// escolhe titulares: usa a escalação real (parsed.startingXI) se o feed trouxer,
+// senão completa por posição.
+function placeStarters(mapped, parsed){
+  const startingXI = (parsed && Array.isArray(parsed.startingXI)) ? parsed.startingXI : null;
+  return startingXI ? applyStartingXI(mapped, startingXI) : autoPlaceStarters(mapped);
+}
+
+// elenco padrão "de verdade": tenta buscar a versão mais recente do Gist primeiro;
+// só usa a lista fixa do código (buildDefaultSquad) se não tiver URL configurada ou a busca falhar.
+async function fetchDefaultSquadPlayers(){
+  if(SQUAD_FEED_URL){
+    try{
+      const res = await fetch(SQUAD_FEED_URL, {cache:'no-store'});
+      if(res.ok){
+        const parsed = await res.json();
+        const mapped = mapSquadJson(parsed);
+        if(mapped && mapped.length) return placeStarters(mapped, parsed);
+      }
+    }catch(err){ /* cai pro fallback abaixo */ }
   }
-  return list
-    .filter((p) => !!p.date_of_birth) // ignora quem não tem data de nascimento
-    .map((p) => ({
-      name: p.short_name || p.name,
-      number: p.jersey_number != null ? String(p.jersey_number) : "00",
-      position: POSITION_MAP[p.position] || p.position,
-      injured: p.availability === "injured",
-    }));
+  return buildDefaultSquad();
 }
 
-async function getUpcomingOpponents() {
-  const raw = await fetchApi(`teams/${TEAM_ID}/fixtures/`);
-  const list = extractList(raw);
-  if (!list) return [];
+/* ============ field sizing (sempre cabe na tela) ============ */
+const FIELD_RATIO = 105/68; // largura/altura de um campo oficial
+function sizeField(){
+  const wrap = document.getElementById('field-wrap');
+  const field = document.getElementById('field');
+  if(!wrap || !field) return;
+  const availW = wrap.clientWidth;
+  const availH = wrap.clientHeight;
+  if(availW<=0 || availH<=0) return;
+  let w = availW, h = w / FIELD_RATIO;
+  if(h > availH){ h = availH; w = h * FIELD_RATIO; }
+  field.style.width = Math.floor(w)+'px';
+  field.style.height = Math.floor(h)+'px';
+}
+if(typeof ResizeObserver !== 'undefined'){
+  const fieldWrapEl = document.getElementById('field-wrap');
+  if(fieldWrapEl) new ResizeObserver(()=> sizeField()).observe(fieldWrapEl);
+}
+window.addEventListener('resize', sizeField);
 
-  return list
-    .filter((f) => f.status === "notstarted")
-    .map((f) => {
-      const isHome = f.home_team_id === TEAM_ID;
-      return {
-        id: isHome ? f.away_team_id : f.home_team_id,
-        name: isHome ? f.away_team : f.home_team,
-        date: f.event_date,
-      };
-    })
-    .filter((o) => o.name)
-    .sort((a, b) => new Date(a.date) - new Date(b.date));
+/* ============ bench sizing (linhas calculadas pela altura real) ============ */
+let benchRows = 3;
+function sizeBench(){
+  const list = document.getElementById('bench-list');
+  if(!list) return;
+  const availH = list.clientHeight - 16; // padding interno
+  const labelH = 18; // altura aproximada do rótulo da posição (glabel)
+  const itemBlock = BENCH_SIZE + 22; // botão + rótulo do jogador + gap vertical
+  const rows = Math.max(2, Math.floor((availH - labelH) / itemBlock));
+  if(rows !== benchRows){
+    benchRows = rows;
+    renderBench();
+  }
+}
+if(typeof ResizeObserver !== 'undefined'){
+  const benchListEl = document.getElementById('bench-list');
+  if(benchListEl) new ResizeObserver(()=> sizeBench()).observe(benchListEl);
+}
+window.addEventListener('resize', sizeBench);
+
+/* ============ storage ============ */
+async function loadState(){
+  const LS_KEY = 'galo-lineup-state';
+  if(hasCloudStorage){
+    try{
+      const res = await window.storage.get(LS_KEY, false);
+      if(res && res.value){
+        const parsed = JSON.parse(res.value);
+        players = Array.isArray(parsed.players) ? parsed.players : await fetchDefaultSquadPlayers();
+        globalKit = Object.assign({...DEFAULT_KIT}, parsed.kit||{});
+        opponentTeamKey = parsed.opponentTeamKey || null;
+        opponentLabel = parsed.opponentLabel || '';
+        opponentColors = parsed.opponentColors || opponentColors;
+        opponentPlayers = Array.isArray(parsed.opponentPlayers) ? parsed.opponentPlayers : [];
+      } else {
+        players = await fetchDefaultSquadPlayers();
+      }
+    }catch(err){
+      players = await fetchDefaultSquadPlayers();
+    }
+  } else if(hasLocalStorage){
+    try{
+      const raw = localStorage.getItem(LS_KEY);
+      if(raw){
+        const parsed = JSON.parse(raw);
+        players = Array.isArray(parsed.players) ? parsed.players : await fetchDefaultSquadPlayers();
+        globalKit = Object.assign({...DEFAULT_KIT}, parsed.kit||{});
+        opponentTeamKey = parsed.opponentTeamKey || null;
+        opponentLabel = parsed.opponentLabel || '';
+        opponentColors = parsed.opponentColors || opponentColors;
+        opponentPlayers = Array.isArray(parsed.opponentPlayers) ? parsed.opponentPlayers : [];
+      } else {
+        players = await fetchDefaultSquadPlayers();
+      }
+    }catch(err){
+      players = await fetchDefaultSquadPlayers();
+    }
+  } else {
+    players = await fetchDefaultSquadPlayers();
+  }
+  players.forEach(p=>{
+    if(p.location === 'target'){ p.location = 'bench'; p.target = true; }
+    if(p.numberColor === '#ffffff'){ p.numberColor = '#ffd400'; }
+  });
+  if(globalKit.numberColor === '#ffffff'){ globalKit.numberColor = '#ffd400'; }
+  if(opponentTeamKey && !opponentLabel){ opponentTeamKey = null; opponentPlayers = []; }
+  finishLoad();
 }
 
-async function main() {
-  const player = await getSquad();
-  console.log(`Elenco: ${player.length} jogadores.`);
+function finishLoad(){
+  syncKitInputsUI();
+  renderDynamicOpponentButtons();
+  if(opponentTeamKey && opponentLabel){
+    btnOpponent.textContent = '🆚 ' + opponentLabel;
+    btnOpponent.classList.add('active');
+  }
+  setOpponentActive(!!opponentTeamKey);
+  renderAll();
+  document.getElementById('loading').classList.add('hidden');
+  document.getElementById('app').classList.remove('hidden');
+  requestAnimationFrame(()=>{ sizeField(); sizeBench(); });
+}
 
-  let opponents = [];
-  try {
-    opponents = await getUpcomingOpponents();
-    console.log(`Próximos jogos: ${opponents.length} adversários encontrados.`);
-    opponents.forEach((o) => console.log(`  - ${o.name} (${o.date})`));
-  } catch (err) {
-    console.log("Não consegui buscar os próximos jogos (seguindo só com o elenco):", err.message);
+function scheduleSave(){
+  if(!hasCloudStorage && !hasLocalStorage) return;
+  clearTimeout(saveTimer);
+  const statusEl = document.getElementById('save-status');
+  statusEl.textContent = 'salvando…';
+  saveTimer = setTimeout(saveState, 450);
+}
+async function saveState(){
+  const statusEl = document.getElementById('save-status');
+  const LS_KEY = 'galo-lineup-state';
+  try{
+    const payload = JSON.stringify({kit:globalKit, players, opponentTeamKey, opponentLabel, opponentColors, opponentPlayers});
+    if(hasCloudStorage){
+      await window.storage.set(LS_KEY, payload, false);
+    } else if(hasLocalStorage){
+      localStorage.setItem(LS_KEY, payload);
+    }
+    statusEl.textContent = 'salvo ✓';
+    setTimeout(()=>{ if(statusEl.textContent==='salvo ✓') statusEl.textContent=''; }, 1500);
+  }catch(err){
+    statusEl.textContent = 'erro ao salvar';
+  }
+}
+
+/* ============ jersey node ============ */
+function buildJerseyNode(p, opts){
+  opts = opts || {};
+  const wrap = document.createElement('div');
+  wrap.className = 'jersey-wrap';
+  wrap.dataset.id = p.id;
+  const zoneKind = opts.zoneKind || null; // 'sell' | 'loan' | 'target' | null
+  const isZoneChip = !!zoneKind;
+  const locMult = 0.82;
+  const isFieldRender = p.location==='field' && !isZoneChip;
+  const finalSize = isFieldRender
+    ? BASE_SIZE * (p.scale||1) * (globalKit.sizeMult||1) * locMult
+    : (isZoneChip ? ZONE_SIZE : BENCH_SIZE);
+  wrap.style.setProperty('--size', finalSize+'px');
+  if(isFieldRender){
+    wrap.classList.add('on-field');
+    wrap.style.left = p.x+'%';
+    wrap.style.top = p.y+'%';
+  }
+  if(isZoneChip) {
+    wrap.classList.add('chip');
   }
 
-  fs.mkdirSync("data", { recursive: true });
-  fs.writeFileSync("data/elenco.json", JSON.stringify({ player }, null, 2));
-  console.log("Salvo em data/elenco.json");
+  const labelText = escapeHtml(p.name);
+  const injuryBadge = p.injured ? '<span class="injury-badge" title="Lesionado"></span>' : '';
+  const suspensionBadge = p.suspended ? '<span class="suspension-badge" title="Suspenso"></span>' : '';
 
-  fs.writeFileSync("data/opponents.json", JSON.stringify(opponents, null, 2));
-  console.log("Salvo em data/opponents.json");
+  wrap.innerHTML =
+    '<div class="jersey-frame">'+
+      '<div class="jersey" data-style="'+p.style+'" style="--primary:'+p.primary+';--secondary:'+p.secondary+';--numcolor:'+p.numberColor+';">'+
+        '<span class="num">'+p.number+'</span>'+
+      '</div>'+
+      injuryBadge + suspensionBadge +
+    '</div>'+
+    '<div class="label">'+labelText+'</div>';
+
+  if(zoneKind === 'target'){
+    // reforço/especulação: nunca esteve no elenco. Não é arrastável daqui — só editar (clique) ou excluir (X).
+    wrap.classList.add('chip-target');
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'chip-return chip-delete';
+    btn.title = 'Excluir especulação';
+    btn.textContent = '×';
+    btn.addEventListener('click', (ev)=>{
+      ev.stopPropagation();
+      if(!confirm('Excluir "'+p.name+'"? Ele será removido de onde estiver (Reforços, banco ou campo).')) return;
+      players = players.filter(x=>x.id!==p.id);
+      renderAll();
+      scheduleSave();
+    });
+    wrap.appendChild(btn);
+    wrap.addEventListener('click', ()=> openEditModal(p.id));
+  } else if(zoneKind === 'sell' || zoneKind === 'loan'){
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'chip-return';
+    btn.title = 'Voltar ao banco';
+    btn.textContent = '↩';
+    btn.addEventListener('pointerdown', (ev)=> ev.stopPropagation());
+    btn.addEventListener('click', (ev)=>{
+      ev.stopPropagation();
+      p.location = 'bench';
+      renderAll();
+      scheduleSave();
+    });
+    wrap.appendChild(btn);
+    attachDrag(wrap, p.id);
+  } else {
+    attachDrag(wrap, p.id);
+  }
+
+  return wrap;
 }
 
-main().catch((err) => {
-  console.error("Falhou:", err.message);
-  process.exit(1);
+/* ============ render ============ */
+function renderField(){
+  const fieldEl = document.getElementById('field');
+  fieldEl.querySelectorAll('.jersey-wrap:not(.opponent)').forEach(n=>n.remove());
+  const onField = players.filter(p=>p.location==='field');
+  onField.forEach(p=> fieldEl.appendChild(buildJerseyNode(p)));
+  document.getElementById('field-count').textContent = onField.length;
+}
+function buildOpponentNode(p){
+  const wrap = document.createElement('div');
+  wrap.className = 'jersey-wrap on-field opponent';
+  wrap.dataset.id = p.id;
+  const finalSize = BASE_SIZE * (globalKit.sizeMult||1) * 0.58;
+  wrap.style.setProperty('--size', finalSize+'px');
+  wrap.style.left = p.x+'%';
+  wrap.style.top = p.y+'%';
+  wrap.innerHTML =
+    '<div class="jersey-frame">'+
+      '<div class="jersey" data-style="'+opponentColors.style+'" style="--primary:'+opponentColors.primary+';--secondary:'+opponentColors.secondary+';--numcolor:'+opponentColors.numberColor+';">'+
+        '<span class="num"></span>'+
+      '</div>'+
+    '</div>'+
+    '<div class="label">'+escapeHtml(p.name)+'</div>';
+  attachDrag(wrap, p.id, true);
+  return wrap;
+}
+function renderOpponents(){
+  const fieldEl = document.getElementById('field');
+  fieldEl.querySelectorAll('.jersey-wrap.opponent').forEach(n=>n.remove());
+  opponentPlayers.forEach(p=> fieldEl.appendChild(buildOpponentNode(p)));
+}
+function renderBench(){
+  const benchEl = document.getElementById('bench-list');
+  benchEl.innerHTML = '';
+  const benchPlayers = players.filter(p=>p.location==='bench' && !p.target && !p.suspended && !p.injured);
+  document.getElementById('bench-count').textContent = benchPlayers.length;
+  POS_ORDER.forEach(pos=>{
+    const group = benchPlayers.filter(p=>p.pos===pos).sort((a,b)=>a.number-b.number);
+    if(!group.length) return;
+    const gEl = document.createElement('div');
+    gEl.className = 'bench-group';
+    const label = document.createElement('div');
+    label.className = 'glabel';
+    label.textContent = POS_LABELS[pos];
+    const row = document.createElement('div');
+    row.className = 'grow';
+    row.style.gridTemplateRows = 'repeat('+benchRows+', auto)';
+    group.forEach(p=> row.appendChild(buildJerseyNode(p)));
+    gEl.appendChild(label);
+    gEl.appendChild(row);
+    benchEl.appendChild(gEl);
+  });
+
+  // coluna extra: reforços/especulações que estão atualmente no banco (coexistem com o Modo Diretor)
+  const speculative = players.filter(p=>p.location==='bench' && p.target && !p.suspended && !p.injured).sort((a,b)=>a.number-b.number);
+  if(speculative.length){
+    const gEl = document.createElement('div');
+    gEl.className = 'bench-group bench-group-spec';
+    const label = document.createElement('div');
+    label.className = 'glabel';
+    label.textContent = '🔎 Especulações';
+    const row = document.createElement('div');
+    row.className = 'grow';
+    row.style.gridTemplateRows = 'repeat('+benchRows+', auto)';
+    speculative.forEach(p=> row.appendChild(buildJerseyNode(p)));
+    gEl.appendChild(label);
+    gEl.appendChild(row);
+    benchEl.appendChild(gEl);
+  }
+}
+function renderZones(){
+  ['sell','loan'].forEach(z=>{
+    const el = document.getElementById('zone-'+z);
+    el.innerHTML = '';
+    players.filter(p=>p.location===z).forEach(p=> el.appendChild(buildJerseyNode(p, {zoneKind:z})));
+  });
+  const targetEl = document.getElementById('zone-target');
+  targetEl.innerHTML = '';
+  players.filter(p=>p.target).sort((a,b)=>a.number-b.number).forEach(p=> targetEl.appendChild(buildJerseyNode(p, {zoneKind:'target'})));
+}
+// preenche os retângulos de Suspensos e Lesionados automaticamente — só olha
+// pra quem está no banco (quem está em campo continua lá normalmente, só que
+// com o selo visível). Se o jogador tiver os dois estados, prioriza suspenso.
+function renderStatusBoxes(){
+  const suspendedEl = document.getElementById('suspended-list');
+  const injuredEl = document.getElementById('injured-list');
+  suspendedEl.innerHTML = '';
+  injuredEl.innerHTML = '';
+  players.filter(p=>p.location==='bench' && p.suspended)
+    .sort((a,b)=>a.number-b.number)
+    .forEach(p=> suspendedEl.appendChild(buildJerseyNode(p)));
+  players.filter(p=>p.location==='bench' && p.injured && !p.suspended)
+    .sort((a,b)=>a.number-b.number)
+    .forEach(p=> injuredEl.appendChild(buildJerseyNode(p)));
+}
+
+function renderAll(){
+  renderField();
+  renderBench();
+  renderStatusBoxes();
+  renderZones();
+  renderOpponents();
+}
+
+/* ============ drag & drop (pointer events) ============ */
+const drag = {id:null, isOpponent:false, moved:false, startX:0, startY:0, offsetX:0, offsetY:0, w:0, h:0, sourceEl:null, ghost:null, pointerId:null};
+
+function attachDrag(el, id, isOpponent){
+  el.addEventListener('pointerdown', (e)=>{
+    if(e.button !== undefined && e.button !== 0) return;
+    e.preventDefault();
+    drag.id = id;
+    drag.isOpponent = !!isOpponent;
+    drag.moved = false;
+    drag.startX = e.clientX; drag.startY = e.clientY;
+    const r = el.getBoundingClientRect();
+    drag.offsetX = e.clientX - r.left;
+    drag.offsetY = e.clientY - r.top;
+    drag.w = r.width; drag.h = r.height;
+    drag.sourceEl = el;
+    drag.pointerId = e.pointerId;
+    try{ el.setPointerCapture(e.pointerId); }catch(err){}
+    document.addEventListener('pointermove', onDragMove);
+    document.addEventListener('pointerup', onDragUp, {once:true});
+  });
+}
+
+function onDragMove(e){
+  if(!drag.id) return;
+  const dx = e.clientX - drag.startX, dy = e.clientY - drag.startY;
+  if(!drag.moved && Math.hypot(dx,dy) > 6){
+    drag.moved = true;
+    const ghost = drag.sourceEl.cloneNode(true);
+    ghost.classList.add('ghost');
+    ghost.style.position = 'fixed';
+    ghost.style.left = (drag.startX - drag.offsetX) + 'px';
+    ghost.style.top = (drag.startY - drag.offsetY) + 'px';
+    ghost.style.width = drag.w + 'px';
+    ghost.style.margin = '0';
+    ghost.style.zIndex = '9999';
+    ghost.style.opacity = '0.95';
+    ghost.style.transform = 'scale(1.06)';
+    document.body.appendChild(ghost);
+    drag.ghost = ghost;
+    drag.sourceEl.classList.add('dragging-source');
+  }
+  if(drag.moved && drag.ghost){
+    drag.ghost.style.left = (e.clientX - drag.offsetX) + 'px';
+    drag.ghost.style.top = (e.clientY - drag.offsetY) + 'px';
+  }
+}
+
+function onDragUp(e){
+  document.removeEventListener('pointermove', onDragMove);
+  if(drag.sourceEl) drag.sourceEl.classList.remove('dragging-source');
+  if(drag.ghost){ drag.ghost.remove(); }
+
+  const id = drag.id;
+  const wasMoved = drag.moved;
+  const wasOpponent = drag.isOpponent;
+
+  if(wasOpponent){
+    // adversário: só existe em campo, nunca troca/substitui ninguém, nunca vai pra banco/zona
+    if(id && wasMoved){
+      const opp = opponentPlayers.find(o=>o.id===id);
+      if(opp){
+        const dropEl = document.elementFromPoint(e.clientX, e.clientY);
+        const fieldHit = dropEl && dropEl.closest('#field');
+        if(fieldHit){
+          const r = fieldHit.getBoundingClientRect();
+          let x = ((e.clientX - r.left) / r.width) * 100;
+          let y = ((e.clientY - r.top) / r.height) * 100;
+          opp.x = clamp(x,4,96);
+          opp.y = clamp(y,4,96);
+          renderOpponents();
+          scheduleSave();
+        }
+      }
+    } else if(id && !wasMoved){
+      openOpponentEditModal(id);
+    }
+    drag.id = null; drag.isOpponent = false; drag.moved = false; drag.sourceEl = null; drag.ghost = null; drag.pointerId = null;
+    return;
+  }
+
+  if(id && wasMoved){
+    const player = players.find(p=>p.id===id);
+    if(player){
+      const dropEl = document.elementFromPoint(e.clientX, e.clientY);
+      const fieldHit = dropEl && dropEl.closest('#field');
+      const zoneHit = dropEl && dropEl.closest('.zone-drop');
+      const targetWrap = dropEl && dropEl.closest('.jersey-wrap.on-field:not(.opponent)');
+      const targetPlayer = (targetWrap && targetWrap.dataset.id !== id) ? players.find(p2=>p2.id===targetWrap.dataset.id) : null;
+
+      if(fieldHit && targetPlayer){
+        // soltou em cima de outro jogador do Atlético em campo: troca de lugar
+        if(player.location === 'field'){
+          const tx=targetPlayer.x, ty=targetPlayer.y;
+          targetPlayer.x = player.x; targetPlayer.y = player.y;
+          player.x = tx; player.y = ty;
+        } else {
+          // banco/zona -> vira titular no lugar do outro, que vai pro banco
+          player.x = targetPlayer.x; player.y = targetPlayer.y;
+          player.location = 'field';
+          targetPlayer.location = 'bench';
+        }
+      } else if(fieldHit){
+        // inclui soltar em cima de um adversário: não substitui, só posiciona ali (adversário não se move)
+        const r = fieldHit.getBoundingClientRect();
+        let x = ((e.clientX - r.left) / r.width) * 100;
+        let y = ((e.clientY - r.top) / r.height) * 100;
+        player.x = clamp(x,4,96);
+        player.y = clamp(y,4,96);
+        player.location = 'field';
+      } else if(zoneHit && zoneHit.dataset.zone !== 'target'){
+        player.location = zoneHit.dataset.zone;
+      }
+      // soltar em cima de Reforços/Especulações não faz nada — essa coluna só aceita
+      // jogadores criados pelo botão "+" de lá (arrastar quebraria a marcação target).
+      renderAll();
+      scheduleSave();
+    }
+  } else if(id && !wasMoved){
+    openEditModal(id);
+  }
+
+  drag.id = null; drag.isOpponent = false; drag.moved = false; drag.sourceEl = null; drag.ghost = null; drag.pointerId = null;
+}
+
+/* ============ modal (add/edit) ============ */
+const overlay = document.getElementById('modal-overlay');
+const form = document.getElementById('player-form');
+const previewEl = document.getElementById('preview-jersey');
+const previewFrameEl = document.getElementById('preview-jersey-frame');
+
+function updatePreview(){
+  previewEl.style.setProperty('--primary', document.getElementById('f-primary').value);
+  previewEl.style.setProperty('--secondary', document.getElementById('f-secondary').value);
+  previewEl.style.setProperty('--numcolor', document.getElementById('f-numcolor').value);
+  previewEl.dataset.style = document.getElementById('f-style').value;
+  previewEl.querySelector('.num').textContent = document.getElementById('f-number').value || '00';
+  const scale = parseFloat(document.getElementById('f-scale').value) || 1;
+  previewEl.style.setProperty('--size', (95*scale) + 'px');
+  const existingBadge = previewFrameEl.querySelector('.injury-badge');
+  if(document.getElementById('f-injured').checked){
+    if(!existingBadge){
+      const b = document.createElement('span');
+      b.className = 'injury-badge';
+      previewFrameEl.appendChild(b);
+    }
+  } else if(existingBadge){
+    existingBadge.remove();
+  }
+  const existingSuspBadge = previewFrameEl.querySelector('.suspension-badge');
+  if(document.getElementById('f-suspended').checked){
+    if(!existingSuspBadge){
+      const b = document.createElement('span');
+      b.className = 'suspension-badge';
+      previewFrameEl.appendChild(b);
+    }
+  } else if(existingSuspBadge){
+    existingSuspBadge.remove();
+  }
+}
+form.addEventListener('input', updatePreview);
+
+let pendingAddLocation = 'bench';
+let pendingAddIsTarget = false;
+function openAddModal(isTarget){
+  editingId = null;
+  pendingAddLocation = 'bench';
+  pendingAddIsTarget = !!isTarget;
+  document.getElementById('modal-title').textContent = isTarget ? 'Adicionar reforço/especulação' : 'Adicionar jogador';
+  document.getElementById('btn-delete').classList.add('hidden');
+  document.getElementById('f-name').value = '';
+  document.getElementById('f-number').value = '';
+  document.getElementById('f-pos').value = 'ATA';
+  document.getElementById('f-primary').value = globalKit.primary;
+  document.getElementById('f-secondary').value = globalKit.secondary;
+  document.getElementById('f-numcolor').value = globalKit.numberColor;
+  document.getElementById('f-style').value = globalKit.style;
+  document.getElementById('f-scale').value = 1;
+  document.getElementById('f-injured').checked = false;
+  document.getElementById('f-suspended').checked = false;
+  updatePreview();
+  overlay.classList.remove('hidden');
+  document.getElementById('f-name').focus();
+}
+
+function openEditModal(id){
+  const p = players.find(pl=>pl.id===id);
+  if(!p) return;
+  editingId = id;
+  document.getElementById('modal-title').textContent = 'Editar jogador';
+  document.getElementById('btn-delete').classList.remove('hidden');
+  document.getElementById('f-name').value = p.name;
+  document.getElementById('f-number').value = p.number;
+  document.getElementById('f-pos').value = p.pos;
+  document.getElementById('f-primary').value = p.primary;
+  document.getElementById('f-secondary').value = p.secondary;
+  document.getElementById('f-numcolor').value = p.numberColor;
+  document.getElementById('f-style').value = p.style;
+  document.getElementById('f-scale').value = p.scale || 1;
+  document.getElementById('f-injured').checked = !!p.injured;
+  document.getElementById('f-suspended').checked = !!p.suspended;
+  updatePreview();
+  overlay.classList.remove('hidden');
+}
+
+function closeModal(){
+  overlay.classList.add('hidden');
+  editingId = null;
+}
+
+form.addEventListener('submit', (e)=>{
+  e.preventDefault();
+  const data = {
+    name: document.getElementById('f-name').value.trim() || 'Sem nome',
+    number: parseInt(document.getElementById('f-number').value,10) || 0,
+    pos: document.getElementById('f-pos').value,
+    primary: document.getElementById('f-primary').value,
+    secondary: document.getElementById('f-secondary').value,
+    numberColor: document.getElementById('f-numcolor').value,
+    style: document.getElementById('f-style').value,
+    scale: parseFloat(document.getElementById('f-scale').value) || 1,
+    injured: document.getElementById('f-injured').checked,
+    suspended: document.getElementById('f-suspended').checked,
+  };
+  if(editingId){
+    const p = players.find(pl=>pl.id===editingId);
+    Object.assign(p, data);
+  } else {
+    players.push(Object.assign({id:uid(), location:pendingAddLocation, target:pendingAddIsTarget, x:50, y:50}, data));
+  }
+  closeModal();
+  renderAll();
+  scheduleSave();
 });
+
+document.getElementById('btn-cancel').addEventListener('click', closeModal);
+overlay.addEventListener('click', (e)=>{ if(e.target===overlay) closeModal(); });
+
+document.getElementById('btn-delete').addEventListener('click', ()=>{
+  if(!editingId) return;
+  if(!confirm('Excluir este jogador do elenco?')) return;
+  players = players.filter(p=>p.id!==editingId);
+  closeModal();
+  renderAll();
+  scheduleSave();
+});
+
+document.getElementById('btn-add').addEventListener('click', ()=> openAddModal(false));
+document.getElementById('btn-add-target').addEventListener('click', ()=> openAddModal(true));
+
+/* ============ toolbar: kit config ============ */
+function syncKitInputsUI(){
+  document.getElementById('kit-primary').value = globalKit.primary;
+  document.getElementById('kit-secondary').value = globalKit.secondary;
+  document.getElementById('kit-numcolor').value = globalKit.numberColor;
+  document.getElementById('kit-style').value = globalKit.style;
+  document.getElementById('kit-size').value = globalKit.sizeMult;
+}
+
+document.getElementById('kit-primary').addEventListener('change', e=>{ globalKit.primary = e.target.value; });
+document.getElementById('kit-secondary').addEventListener('change', e=>{ globalKit.secondary = e.target.value; });
+document.getElementById('kit-numcolor').addEventListener('change', e=>{ globalKit.numberColor = e.target.value; });
+document.getElementById('kit-style').addEventListener('change', e=>{ globalKit.style = e.target.value; });
+
+let sizeRAF = null;
+document.getElementById('kit-size').addEventListener('input', e=>{
+  globalKit.sizeMult = parseFloat(e.target.value);
+  if(sizeRAF) return;
+  sizeRAF = requestAnimationFrame(()=>{ renderAll(); sizeRAF = null; });
+});
+document.getElementById('kit-size').addEventListener('change', scheduleSave);
+
+document.getElementById('btn-apply-all').addEventListener('click', ()=>{
+  players.forEach(p=>{
+    p.primary = globalKit.primary;
+    p.secondary = globalKit.secondary;
+    p.numberColor = globalKit.numberColor;
+    p.style = globalKit.style;
+  });
+  renderAll();
+  scheduleSave();
+});
+
+document.getElementById('btn-galo-colors').addEventListener('click', ()=>{
+  globalKit.primary = '#000000';
+  globalKit.secondary = '#000000';
+  globalKit.numberColor = '#ffd400';
+  globalKit.style = 'solid';
+  syncKitInputsUI();
+  players.forEach(p=>{
+    p.primary = globalKit.primary;
+    p.secondary = globalKit.secondary;
+    p.numberColor = globalKit.numberColor;
+    p.style = globalKit.style;
+  });
+  renderAll();
+  scheduleSave();
+});
+
+/* ============ modo diretor ============ */
+const directorPanel = document.getElementById('director-panel');
+const btnDirector = document.getElementById('btn-director');
+btnDirector.addEventListener('click', ()=>{
+  directorPanel.classList.toggle('hidden');
+  btnDirector.classList.toggle('active', !directorPanel.classList.contains('hidden'));
+  requestAnimationFrame(sizeField);
+});
+
+/* ============ adversário ============ */
+const btnOpponent = document.getElementById('btn-opponent');
+const opponentOverlay = document.getElementById('opponent-overlay');
+
+function openOpponentModal(){ opponentOverlay.classList.remove('hidden'); }
+function closeOpponentModal(){ opponentOverlay.classList.add('hidden'); }
+
+function setOpponentActive(active){
+  if(active){
+    directorPanel.classList.add('hidden');
+    btnDirector.classList.remove('active');
+    btnDirector.disabled = true;
+  } else {
+    btnDirector.disabled = false;
+  }
+}
+
+function activateOpponent(key){
+  const team = OPPONENTS[key];
+  if(!team) return;
+  opponentTeamKey = key;
+  opponentLabel = team.label;
+  opponentPlayers = team.lineup.map((p,i)=>({id:'opp'+i, name:p.name, x:p.x, y:p.y}));
+  btnOpponent.textContent = '🆚 ' + opponentLabel;
+  btnOpponent.classList.add('active');
+  setOpponentActive(true);
+  renderAll();
+  scheduleSave();
+}
+
+// times vindos dos próximos jogos (feed da API) ainda não têm escalação
+// curada — entra com 11 espaços genéricos na formação padrão, e cada nome
+// pode ser editado depois com um clique, igual qualquer outro adversário.
+function activateDynamicOpponent(name, teamId){
+  opponentTeamKey = 'dynamic-' + teamId;
+  opponentLabel = opponentDisplayName(name);
+  opponentColors = findTeamColors(name);
+  opponentPlayers = OPPONENT_FORMATION.map((slot,i)=>({id:'opp'+i, name:'Jogador '+(i+1), x:slot.x, y:slot.y}));
+  btnOpponent.textContent = '🆚 ' + opponentLabel;
+  btnOpponent.classList.add('active');
+  setOpponentActive(true);
+  renderAll();
+  scheduleSave();
+}
+
+function deactivateOpponent(){
+  opponentTeamKey = null;
+  opponentLabel = '';
+  opponentPlayers = [];
+  opponentColors = {primary:OPPONENT_RED, secondary:OPPONENT_RED, numberColor:'#ffffff', style:'solid'};
+  btnOpponent.textContent = '🆚 Adversário';
+  btnOpponent.classList.remove('active');
+  setOpponentActive(false);
+  renderAll();
+  scheduleSave();
+}
+
+function formatMatchDate(iso){
+  if(!iso) return '';
+  try{
+    const d = new Date(iso);
+    if(isNaN(d.getTime())) return '';
+    return d.toLocaleDateString('pt-BR', {day:'2-digit', month:'2-digit'});
+  }catch(err){ return ''; }
+}
+
+// desenha os botões dos próximos adversários (buscados via feed) dentro do
+// modal, ao lado dos times curados à mão. Evita duplicar se o nome já bater
+// com um time curado (ex: Internacional).
+async function refreshDynamicOpponents(){
+  if(!OPPONENTS_FEED_URL) return;
+  try{
+    const res = await fetch(OPPONENTS_FEED_URL, {cache:'no-store'});
+    if(res.ok){
+      const parsed = await res.json();
+      const list = Array.isArray(parsed) ? parsed : (parsed && Array.isArray(parsed.opponents) ? parsed.opponents : null);
+      if(list){
+        dynamicOpponents = list;
+        renderDynamicOpponentButtons();
+      }
+    }
+  }catch(err){ /* silencioso — o clique no botão Adversário tenta buscar de novo */ }
+}
+
+function renderDynamicOpponentButtons(){
+  const listEl = document.querySelector('.opponent-team-list');
+  if(!listEl) return;
+  listEl.querySelectorAll('.team-btn-dynamic').forEach(b=>b.remove());
+  const staticLabels = new Set(Object.values(OPPONENTS).map(t=>t.label.toLowerCase()));
+  dynamicOpponents
+    .filter(o => o && o.name && !staticLabels.has(String(o.name).toLowerCase()))
+    .slice(0, 3)
+    .forEach(o=>{
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'btn team-btn team-btn-dynamic';
+      const dateLabel = formatMatchDate(o.date);
+      const c = findTeamColors(o.name);
+      btn.innerHTML =
+        '<div class="jersey-frame" style="--size:34px">'+
+          '<div class="jersey" data-style="'+c.style+'" style="--primary:'+c.primary+';--secondary:'+c.secondary+';--numcolor:'+c.numberColor+';"></div>'+
+        '</div>'+
+        '<span>'+escapeHtml(opponentDisplayName(o.name))+(dateLabel ? ' — '+dateLabel : '')+'</span>';
+      btn.addEventListener('click', ()=>{
+        activateDynamicOpponent(o.name, o.id);
+        closeOpponentModal();
+      });
+      listEl.appendChild(btn);
+    });
+}
+
+let editingOpponentId = null;
+const opponentEditOverlay = document.getElementById('opponent-edit-overlay');
+const opponentEditNameEl = document.getElementById('opponent-edit-name');
+
+function openOpponentEditModal(id){
+  const opp = opponentPlayers.find(o=>o.id===id);
+  if(!opp) return;
+  editingOpponentId = id;
+  opponentEditNameEl.value = opp.name;
+  opponentEditOverlay.classList.remove('hidden');
+  opponentEditNameEl.focus();
+  opponentEditNameEl.select();
+}
+function closeOpponentEditModal(){
+  opponentEditOverlay.classList.add('hidden');
+  editingOpponentId = null;
+}
+function saveOpponentEdit(){
+  const opp = opponentPlayers.find(o=>o.id===editingOpponentId);
+  if(opp){
+    const val = opponentEditNameEl.value.trim();
+    if(val) opp.name = val;
+    renderOpponents();
+    scheduleSave();
+  }
+  closeOpponentEditModal();
+}
+document.getElementById('btn-opponent-edit-cancel').addEventListener('click', closeOpponentEditModal);
+document.getElementById('btn-opponent-edit-save').addEventListener('click', saveOpponentEdit);
+opponentEditOverlay.addEventListener('click', (e)=>{ if(e.target===opponentEditOverlay) closeOpponentEditModal(); });
+opponentEditNameEl.addEventListener('keydown', (e)=>{ if(e.key==='Enter') saveOpponentEdit(); });
+
+btnOpponent.addEventListener('click', async ()=>{
+  if(opponentTeamKey){
+    deactivateOpponent();
+    return;
+  }
+  const original = btnOpponent.textContent;
+  if(SQUAD_FEED_URL){
+    btnOpponent.disabled = true;
+    btnOpponent.textContent = '⏳ Buscando…';
+    await loadTeamColors();
+    await refreshDynamicOpponents();
+    btnOpponent.disabled = false;
+    btnOpponent.textContent = original;
+  }
+  openOpponentModal();
+});
+document.querySelectorAll('.team-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    activateOpponent(btn.dataset.team);
+    closeOpponentModal();
+  });
+});
+document.getElementById('btn-opponent-cancel').addEventListener('click', closeOpponentModal);
+opponentOverlay.addEventListener('click', (e)=>{ if(e.target===opponentOverlay) closeOpponentModal(); });
+
+/* ============ reset / export / import ============ */
+document.getElementById('btn-reset').addEventListener('click', async ()=>{
+  if(!confirm('Isso vai restaurar o elenco padrão (buscando a versão mais recente do Gist, se disponível) e apagar suas edições. Continuar?')) return;
+  const btnResetEl = document.getElementById('btn-reset');
+  const original = btnResetEl.textContent;
+  btnResetEl.disabled = true;
+  btnResetEl.textContent = '⏳';
+  players = await fetchDefaultSquadPlayers();
+  globalKit = {...DEFAULT_KIT};
+  btnResetEl.disabled = false;
+  btnResetEl.textContent = original;
+  syncKitInputsUI();
+  renderAll();
+  scheduleSave();
+});
+
+/* ============ atualizar elenco ============ */
+// Cole aqui a URL "raw" do seu Gist (sem o hash de revisão, pra sempre pegar a versão mais recente).
+// Enquanto estiver vazia, o botão "Atualizar elenco" abre direto a colagem manual de JSON.
+const SQUAD_FEED_URL = 'https://raw.githubusercontent.com/alexandrepretti93/mesatatica/main/data/elenco.json';
+const OPPONENTS_FEED_URL = 'https://raw.githubusercontent.com/alexandrepretti93/mesatatica/main/data/opponents.json';
+const TEAM_COLORS_FEED_URL = 'https://raw.githubusercontent.com/alexandrepretti93/mesatatica/main/data/team-colors.json';
+
+function mapPosition(raw){
+  const s = (raw||'').toLowerCase();
+  // português (Transfermarkt) + inglês (TheSportsDB e afins)
+  if(s.includes('goleiro') || s.includes('goalkeeper')) return 'GOL';
+  if(s.includes('lateral') || s.includes('right-back') || s.includes('left-back') || s.includes('right back') || s.includes('left back') || s.includes('wing-back') || s.includes('wing back')) return 'LAT';
+  if(s.includes('zagueiro') || s.includes('zaga') || s.includes('centre-back') || s.includes('center-back') || s.includes('centre back') || s.includes('center back')) return 'ZAG';
+  if(s.includes('volante') || s.includes('meia') || s.includes('meio') || s.includes('midfield')) return 'MEI';
+  if(s.includes('ponta') || s.includes('atacante') || s.includes('centroavante') || s.includes('centro-avante') || s.includes('centro avante') || s.includes('wing') || s.includes('forward') || s.includes('striker')) return 'ATA';
+  if(s.includes('defen') || s.includes('back')) return 'ZAG'; // zagueiro/defensor genérico
+  return 'MEI';
+}
+
+// aceita tanto um array direto [{...}] quanto o formato {"player":[...]} do TheSportsDB,
+// e tanto os nomes de campo do Transfermarkt (name/number/position) quanto os do
+// TheSportsDB (strPlayer/strNumber/strPosition) — normaliza tudo pro mesmo formato interno.
+function normalizeSquadInput(parsed){
+  const arr = Array.isArray(parsed) ? parsed : (parsed && Array.isArray(parsed.player) ? parsed.player : null);
+  if(!arr) return null;
+  return arr.map(item => ({
+    name: item.name || item.strPlayer || '',
+    number: (item.number !== undefined && item.number !== null) ? item.number : item.strNumber,
+    position: item.position || item.strPosition || '',
+    injured: item.injured,
+    status: item.status,
+  }));
+}
+
+// correções aplicadas sempre que o elenco é atualizado (chave = nome exatamente
+// como a fonte de dados manda, em minúsculas — comparado antes da abreviação)
+const SQUAD_NAME_OVERRIDES = {
+  'k. p. resende': 'Pascini',
+  'v. f. c. teixeira': 'Vitão',
+  'c. c. soares': 'Cauã Soares',
+  'p. c. rodrigues': 'Pedro Cobra',
+};
+const SQUAD_LAT_OVERRIDES = ['natanael', 'á. preciado', 'a. preciado', 'r. lodi', 'k. p. resende'];
+const SQUAD_NUMBER_OVERRIDES = {
+  'l. duarte': '3',
+  'p. c. rodrigues': '46',
+};
+// jogadores que entram na mão se a fonte de dados não trouxer eles
+const SQUAD_MISSING_ADDITIONS = [
+  {match: ['castaño', 'castano'], name: 'K.Castaño', number: '15', pos: 'MEI'},
+  {match: ['fred'], name: 'Fred', number: '7', pos: 'MEI'},
+];
+
+function mapSquadJson(parsed){
+  const normalized = normalizeSquadInput(parsed);
+  if(!normalized) return null;
+  const mapped = normalized
+    .filter(item => item && item.name)
+    .map(item => {
+      const rawKey = String(item.name).trim().toLowerCase();
+      const displayName = SQUAD_NAME_OVERRIDES[rawKey] || String(item.name).trim();
+      let number = (item.number!==undefined && item.number!==null && String(item.number).trim()!=='') ? String(item.number).trim() : '00';
+      if(SQUAD_NUMBER_OVERRIDES[rawKey]) number = SQUAD_NUMBER_OVERRIDES[rawKey];
+      let pos = mapPosition(item.position);
+      if(SQUAD_LAT_OVERRIDES.includes(rawKey)) pos = 'LAT';
+      return {
+        id: uid(),
+        name: abbreviateName(displayName),
+        number,
+        pos,
+        primary: globalKit.primary,
+        secondary: globalKit.secondary,
+        numberColor: globalKit.numberColor,
+        style: globalKit.style,
+        scale: 1,
+        location: 'bench',
+        injured: item.injured === true || (typeof item.status === 'string' && item.status.trim().toLowerCase() === 'injured'),
+        x: 50, y: 50,
+      };
+    });
+
+  SQUAD_MISSING_ADDITIONS.forEach(add=>{
+    const exists = mapped.some(p => add.match.some(m => p.name.toLowerCase().includes(m)));
+    if(!exists){
+      mapped.push({
+        id: uid(),
+        name: add.name,
+        number: add.number,
+        pos: add.pos,
+        primary: globalKit.primary,
+        secondary: globalKit.secondary,
+        numberColor: globalKit.numberColor,
+        style: globalKit.style,
+        scale: 1,
+        location: 'bench',
+        injured: false,
+        x: 50, y: 50,
+      });
+    }
+  });
+
+  return mapped;
+}
+
+function applyMappedSquad(mapped, parsed){
+  if(!mapped || !mapped.length) return false;
+  players = placeStarters(mapped, parsed);
+  renderAll();
+  scheduleSave();
+  return true;
+}
+
+const updateOverlay = document.getElementById('update-overlay');
+const updateJsonEl = document.getElementById('update-json');
+const updateErrorEl = document.getElementById('update-error');
+const btnUpdateSquad = document.getElementById('btn-update-squad');
+const btnUpdateSquadLabel = btnUpdateSquad.textContent;
+
+function openManualUpdateModal(message){
+  updateJsonEl.value = '';
+  if(message){
+    updateErrorEl.textContent = message;
+    updateErrorEl.classList.remove('hidden');
+  } else {
+    updateErrorEl.classList.add('hidden');
+  }
+  updateOverlay.classList.remove('hidden');
+}
+
+btnUpdateSquad.addEventListener('click', async ()=>{
+  if(!SQUAD_FEED_URL){
+    openManualUpdateModal();
+    return;
+  }
+  btnUpdateSquad.disabled = true;
+  btnUpdateSquad.textContent = '⏳ Buscando…';
+  try{
+    const res = await fetch(SQUAD_FEED_URL, {cache:'no-store'});
+    if(!res.ok) throw new Error('http '+res.status);
+    const parsed = await res.json();
+    const mapped = mapSquadJson(parsed);
+    if(!mapped || !mapped.length) throw new Error('lista vazia');
+    if(confirm('Atualizar o elenco com os '+mapped.length+' jogadores mais recentes?')){
+      applyMappedSquad(mapped, parsed);
+      btnUpdateSquad.textContent = '✓ Atualizado!';
+      setTimeout(()=>{ btnUpdateSquad.textContent = btnUpdateSquadLabel; }, 2000);
+    } else {
+      btnUpdateSquad.textContent = btnUpdateSquadLabel;
+    }
+  }catch(err){
+    btnUpdateSquad.textContent = btnUpdateSquadLabel;
+    openManualUpdateModal('Não consegui buscar os dados automaticamente agora. Cole o JSON manualmente abaixo, ou tente de novo mais tarde.');
+  }finally{
+    btnUpdateSquad.disabled = false;
+  }
+});
+
+document.getElementById('btn-update-cancel').addEventListener('click', ()=> updateOverlay.classList.add('hidden'));
+updateOverlay.addEventListener('click', (e)=>{ if(e.target===updateOverlay) updateOverlay.classList.add('hidden'); });
+
+document.getElementById('btn-update-apply').addEventListener('click', ()=>{
+  let parsed;
+  try{
+    parsed = JSON.parse(updateJsonEl.value);
+    const testArr = Array.isArray(parsed) ? parsed : (parsed && Array.isArray(parsed.player) ? parsed.player : null);
+    if(!testArr || !testArr.length) throw new Error('vazio');
+  }catch(err){
+    updateErrorEl.textContent = 'JSON inválido. Cole um array (ou {"player":[...]}) no formato [{"number":"6","name":"Renan Lodi","position":"Lateral Esq."}, ...].';
+    updateErrorEl.classList.remove('hidden');
+    return;
+  }
+  const mapped = mapSquadJson(parsed);
+  if(!mapped || !mapped.length){
+    updateErrorEl.textContent = 'Nenhum jogador válido encontrado nesse JSON (cada item precisa de "name").';
+    updateErrorEl.classList.remove('hidden');
+    return;
+  }
+  if(!confirm('Isso vai substituir todo o elenco atual pelos '+mapped.length+' jogadores importados. Continuar?')) return;
+  applyMappedSquad(mapped, parsed);
+  updateOverlay.classList.add('hidden');
+});
+
+
+/* ============ init ============ */
+loadState();
+
+})();
+</script>
+</body>
+</html>
