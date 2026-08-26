@@ -121,6 +121,12 @@
       "injured": false
     },
     {
+      "name": "Fred",
+      "number": "7",
+      "position": "Midfielder",
+      "injured": false
+    },
+    {
       "name": "Maycon",
       "number": "8",
       "position": "Midfielder",
