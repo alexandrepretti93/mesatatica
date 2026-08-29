@@ -145,12 +145,6 @@
       "injured": false
     },
     {
-      "name": "K. Castaño",
-      "number": "15",
-      "position": "Midfielder",
-      "injured": false
-    },
-    {
       "name": "I. Gomes",
       "number": "17",
       "position": "Midfielder",
@@ -171,6 +165,12 @@
     {
       "name": "A. Franco",
       "number": "21",
+      "position": "Midfielder",
+      "injured": false
+    },
+    {
+      "name": "K. Castaño",
+      "number": "22",
       "position": "Midfielder",
       "injured": false
     },
