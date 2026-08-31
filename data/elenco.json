@@ -10,7 +10,7 @@
       "name": "Ruan",
       "number": "4",
       "position": "Defender",
-      "injured": true
+      "injured": false
     },
     {
       "name": "L. Duarte",
@@ -106,7 +106,7 @@
       "name": "Everson",
       "number": "22",
       "position": "Goalkeeper",
-      "injured": true
+      "injured": false
     },
     {
       "name": "R. Alves",
