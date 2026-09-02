@@ -37,8 +37,8 @@
       "injured": false
     },
     {
-      "name": "I. Román",
-      "number": "17",
+      "name": "L. Gustavo",
+      "number": "32",
       "position": "Defender",
       "injured": false
     },
@@ -57,6 +57,18 @@
     {
       "name": "Rômulo",
       "number": "47",
+      "position": "Defender",
+      "injured": false
+    },
+    {
+      "name": "L. S. Silva",
+      "number": "50",
+      "position": "Defender",
+      "injured": false
+    },
+    {
+      "name": "P. H. L. Barbosa",
+      "number": "53",
       "position": "Defender",
       "injured": false
     },
@@ -97,12 +109,6 @@
       "injured": false
     },
     {
-      "name": "P. C. Rodrigues",
-      "number": "1",
-      "position": "Goalkeeper",
-      "injured": false
-    },
-    {
       "name": "Everson",
       "number": "22",
       "position": "Goalkeeper",
@@ -111,6 +117,12 @@
     {
       "name": "R. Alves",
       "number": "31",
+      "position": "Goalkeeper",
+      "injured": false
+    },
+    {
+      "name": "P. C. Rodrigues",
+      "number": "46",
       "position": "Goalkeeper",
       "injured": false
     },
@@ -213,6 +225,12 @@
     {
       "name": "Gutte",
       "number": "48",
+      "position": "Midfielder",
+      "injured": false
+    },
+    {
+      "name": "E. Soares",
+      "number": "58",
       "position": "Midfielder",
       "injured": false
     }
