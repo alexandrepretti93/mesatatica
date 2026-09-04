@@ -10,7 +10,7 @@
       "name": "Ruan",
       "number": "4",
       "position": "Defender",
-      "injured": false
+      "injured": true
     },
     {
       "name": "L. Duarte",
@@ -82,7 +82,7 @@
       "name": "T. Borbas",
       "number": "18",
       "position": "Forward",
-      "injured": false
+      "injured": true
     },
     {
       "name": "A. Minda",
