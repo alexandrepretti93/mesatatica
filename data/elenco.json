@@ -142,7 +142,7 @@
       "name": "Maycon",
       "number": "8",
       "position": "Midfielder",
-      "injured": false
+      "injured": true
     },
     {
       "name": "G. Scarpa",
@@ -196,7 +196,7 @@
       "name": "T. Pérez",
       "number": "25",
       "position": "Midfielder",
-      "injured": false
+      "injured": true
     },
     {
       "name": "T. Cuello",
