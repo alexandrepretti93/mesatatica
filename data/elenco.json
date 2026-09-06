@@ -10,7 +10,7 @@
       "name": "Ruan",
       "number": "4",
       "position": "Defender",
-      "injured": true
+      "injured": false
     },
     {
       "name": "L. Duarte",
@@ -37,12 +37,6 @@
       "injured": false
     },
     {
-      "name": "L. Gustavo",
-      "number": "32",
-      "position": "Defender",
-      "injured": false
-    },
-    {
       "name": "K. P. Resende",
       "number": "36",
       "position": "Defender",
@@ -55,19 +49,13 @@
       "injured": false
     },
     {
-      "name": "Rômulo",
-      "number": "47",
-      "position": "Defender",
-      "injured": false
-    },
-    {
-      "name": "L. S. Silva",
-      "number": "50",
-      "position": "Defender",
-      "injured": false
-    },
-    {
       "name": "P. H. L. Barbosa",
+      "number": "53",
+      "position": "Defender",
+      "injured": false
+    },
+    {
+      "name": "P. Tocantins",
       "number": "53",
       "position": "Defender",
       "injured": false
@@ -225,12 +213,6 @@
     {
       "name": "Gutte",
       "number": "48",
-      "position": "Midfielder",
-      "injured": false
-    },
-    {
-      "name": "E. Soares",
-      "number": "58",
       "position": "Midfielder",
       "injured": false
     }
