@@ -136,7 +136,7 @@
       "name": "G. Scarpa",
       "number": "10",
       "position": "Midfielder",
-      "injured": true
+      "injured": false
     },
     {
       "name": "Bernard",
@@ -196,7 +196,7 @@
       "name": "V. Hugo",
       "number": "30",
       "position": "Midfielder",
-      "injured": true
+      "injured": false
     },
     {
       "name": "Índio",
