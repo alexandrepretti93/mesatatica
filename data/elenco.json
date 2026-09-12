@@ -16,7 +16,7 @@
       "name": "L. Duarte",
       "number": "5",
       "position": "Defender",
-      "injured": true
+      "injured": false
     },
     {
       "name": "R. Lodi",
@@ -118,7 +118,7 @@
       "name": "Alexsander",
       "number": "5",
       "position": "Midfielder",
-      "injured": false
+      "injured": true
     },
     {
       "name": "Fred",
