@@ -7,16 +7,16 @@
       "injured": false
     },
     {
+      "name": "L. Duarte",
+      "number": "3",
+      "position": "Defender",
+      "injured": false
+    },
+    {
       "name": "Ruan",
       "number": "4",
       "position": "Defender",
       "injured": true
-    },
-    {
-      "name": "L. Duarte",
-      "number": "5",
-      "position": "Defender",
-      "injured": false
     },
     {
       "name": "R. Lodi",
@@ -28,7 +28,7 @@
       "name": "Lyanco",
       "number": "13",
       "position": "Defender",
-      "injured": true
+      "injured": false
     },
     {
       "name": "V. Hugo",
@@ -130,7 +130,7 @@
       "name": "Maycon",
       "number": "8",
       "position": "Midfielder",
-      "injured": true
+      "injured": false
     },
     {
       "name": "G. Scarpa",
@@ -154,7 +154,7 @@
       "name": "I. Gomes",
       "number": "17",
       "position": "Midfielder",
-      "injured": true
+      "injured": false
     },
     {
       "name": "Reinier",
@@ -190,7 +190,7 @@
       "name": "V. Hugo",
       "number": "30",
       "position": "Midfielder",
-      "injured": false
+      "injured": true
     },
     {
       "name": "Índio",
