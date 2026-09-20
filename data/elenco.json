@@ -70,7 +70,7 @@
       "name": "T. Borbas",
       "number": "18",
       "position": "Forward",
-      "injured": true
+      "injured": false
     },
     {
       "name": "A. Minda",
@@ -118,7 +118,7 @@
       "name": "Alexsander",
       "number": "5",
       "position": "Midfielder",
-      "injured": true
+      "injured": false
     },
     {
       "name": "Fred",
