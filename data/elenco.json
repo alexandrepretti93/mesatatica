@@ -37,6 +37,12 @@
       "injured": false
     },
     {
+      "name": "Á. Preciado",
+      "number": "23",
+      "position": "Defender",
+      "injured": true
+    },
+    {
       "name": "K. P. Resende",
       "number": "36",
       "position": "Defender",
@@ -169,16 +175,10 @@
       "injured": true
     },
     {
-      "name": "Á. Preciado",
-      "number": "23",
-      "position": "Midfielder",
-      "injured": true
-    },
-    {
       "name": "T. Pérez",
       "number": "25",
       "position": "Midfielder",
-      "injured": true
+      "injured": false
     },
     {
       "name": "T. Cuello",
