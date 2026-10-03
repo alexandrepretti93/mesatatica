@@ -10,7 +10,7 @@
       "name": "L. Duarte",
       "number": "3",
       "position": "Defender",
-      "injured": false
+      "injured": true
     },
     {
       "name": "Ruan",
@@ -46,13 +46,13 @@
       "name": "K. P. Resende",
       "number": "36",
       "position": "Defender",
-      "injured": false
+      "injured": true
     },
     {
       "name": "V. F. C. Teixeira",
       "number": "40",
       "position": "Defender",
-      "injured": false
+      "injured": true
     },
     {
       "name": "P. H. L. Barbosa",
@@ -76,7 +76,7 @@
       "name": "T. Borbas",
       "number": "18",
       "position": "Forward",
-      "injured": false
+      "injured": true
     },
     {
       "name": "A. Minda",
