@@ -10,7 +10,7 @@
       "name": "L. Duarte",
       "number": "3",
       "position": "Defender",
-      "injured": true
+      "injured": false
     },
     {
       "name": "Ruan",
@@ -34,7 +34,7 @@
       "name": "V. Hugo",
       "number": "14",
       "position": "Defender",
-      "injured": false
+      "injured": true
     },
     {
       "name": "Á. Preciado",
@@ -43,16 +43,34 @@
       "injured": true
     },
     {
+      "name": "L. Gustavo",
+      "number": "32",
+      "position": "Defender",
+      "injured": false
+    },
+    {
+      "name": "Samuel",
+      "number": "34",
+      "position": "Defender",
+      "injured": false
+    },
+    {
       "name": "K. P. Resende",
       "number": "36",
       "position": "Defender",
-      "injured": true
+      "injured": false
     },
     {
       "name": "V. F. C. Teixeira",
       "number": "40",
       "position": "Defender",
-      "injured": true
+      "injured": false
+    },
+    {
+      "name": "L. S. Silva",
+      "number": "50",
+      "position": "Defender",
+      "injured": false
     },
     {
       "name": "P. H. L. Barbosa",
@@ -67,6 +85,12 @@
       "injured": false
     },
     {
+      "name": "Samuel",
+      "number": "00",
+      "position": "Defender",
+      "injured": false
+    },
+    {
       "name": "M. Cassierra",
       "number": "9",
       "position": "Forward",
@@ -76,7 +100,7 @@
       "name": "T. Borbas",
       "number": "18",
       "position": "Forward",
-      "injured": true
+      "injured": false
     },
     {
       "name": "A. Minda",
@@ -166,7 +190,7 @@
       "name": "Reinier",
       "number": "19",
       "position": "Midfielder",
-      "injured": true
+      "injured": false
     },
     {
       "name": "A. Franco",
@@ -193,6 +217,12 @@
       "injured": true
     },
     {
+      "name": "I. Toledo",
+      "number": "35",
+      "position": "Midfielder",
+      "injured": false
+    },
+    {
       "name": "Índio",
       "number": "38",
       "position": "Midfielder",
@@ -207,6 +237,18 @@
     {
       "name": "Gutte",
       "number": "48",
+      "position": "Midfielder",
+      "injured": false
+    },
+    {
+      "name": "Gutte",
+      "number": "48",
+      "position": "Midfielder",
+      "injured": false
+    },
+    {
+      "name": "E. Soares",
+      "number": "58",
       "position": "Midfielder",
       "injured": false
     }
