@@ -40,7 +40,7 @@
       "name": "Á. Preciado",
       "number": "23",
       "position": "Defender",
-      "injured": true
+      "injured": false
     },
     {
       "name": "L. Gustavo",
@@ -106,7 +106,7 @@
       "name": "A. Minda",
       "number": "27",
       "position": "Forward",
-      "injured": true
+      "injured": false
     },
     {
       "name": "C. C. Soares",
@@ -178,7 +178,7 @@
       "name": "K. Castaño",
       "number": "15",
       "position": "Midfielder",
-      "injured": true
+      "injured": false
     },
     {
       "name": "I. Gomes",
@@ -196,7 +196,7 @@
       "name": "A. Franco",
       "number": "21",
       "position": "Midfielder",
-      "injured": true
+      "injured": false
     },
     {
       "name": "T. Pérez",
