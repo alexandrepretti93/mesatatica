@@ -43,12 +43,6 @@
       "injured": false
     },
     {
-      "name": "L. Gustavo",
-      "number": "32",
-      "position": "Defender",
-      "injured": false
-    },
-    {
       "name": "Samuel",
       "number": "34",
       "position": "Defender",
@@ -63,12 +57,6 @@
     {
       "name": "V. F. C. Teixeira",
       "number": "40",
-      "position": "Defender",
-      "injured": false
-    },
-    {
-      "name": "L. S. Silva",
-      "number": "50",
       "position": "Defender",
       "injured": false
     },
@@ -243,12 +231,6 @@
     {
       "name": "Gutte",
       "number": "48",
-      "position": "Midfielder",
-      "injured": false
-    },
-    {
-      "name": "E. Soares",
-      "number": "58",
       "position": "Midfielder",
       "injured": false
     }
