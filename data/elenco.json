@@ -16,7 +16,7 @@
       "name": "Ruan",
       "number": "4",
       "position": "Defender",
-      "injured": true
+      "injured": false
     },
     {
       "name": "R. Lodi",
@@ -88,7 +88,7 @@
       "name": "T. Borbas",
       "number": "18",
       "position": "Forward",
-      "injured": false
+      "injured": true
     },
     {
       "name": "A. Minda",
@@ -118,7 +118,7 @@
       "name": "Everson",
       "number": "22",
       "position": "Goalkeeper",
-      "injured": true
+      "injured": false
     },
     {
       "name": "R. Alves",
@@ -160,7 +160,7 @@
       "name": "G. Scarpa",
       "number": "10",
       "position": "Midfielder",
-      "injured": true
+      "injured": false
     },
     {
       "name": "Bernard",
