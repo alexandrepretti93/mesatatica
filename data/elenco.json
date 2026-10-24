@@ -148,7 +148,7 @@
       "name": "Fred",
       "number": "7",
       "position": "Midfielder",
-      "injured": true
+      "injured": false
     },
     {
       "name": "Maycon",
