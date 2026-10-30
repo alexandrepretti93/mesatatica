@@ -58,7 +58,7 @@
       "name": "V. F. C. Teixeira",
       "number": "40",
       "position": "Defender",
-      "injured": false
+      "injured": true
     },
     {
       "name": "P. H. L. Barbosa",
@@ -160,7 +160,7 @@
       "name": "G. Scarpa",
       "number": "10",
       "position": "Midfielder",
-      "injured": true
+      "injured": false
     },
     {
       "name": "Bernard",
