@@ -43,6 +43,12 @@
       "injured": false
     },
     {
+      "name": "L. Gustavo",
+      "number": "32",
+      "position": "Defender",
+      "injured": false
+    },
+    {
       "name": "Samuel",
       "number": "34",
       "position": "Defender",
@@ -61,6 +67,12 @@
       "injured": true
     },
     {
+      "name": "L. S. Silva",
+      "number": "50",
+      "position": "Defender",
+      "injured": false
+    },
+    {
       "name": "P. H. L. Barbosa",
       "number": "53",
       "position": "Defender",
@@ -73,12 +85,6 @@
       "injured": false
     },
     {
-      "name": "Samuel",
-      "number": "00",
-      "position": "Defender",
-      "injured": false
-    },
-    {
       "name": "M. Cassierra",
       "number": "9",
       "position": "Forward",
@@ -87,6 +93,12 @@
     {
       "name": "T. Borbas",
       "number": "18",
+      "position": "Forward",
+      "injured": true
+    },
+    {
+      "name": "Reinier",
+      "number": "19",
       "position": "Forward",
       "injured": true
     },
@@ -118,7 +130,7 @@
       "name": "Everson",
       "number": "22",
       "position": "Goalkeeper",
-      "injured": true
+      "injured": false
     },
     {
       "name": "R. Alves",
@@ -142,7 +154,7 @@
       "name": "Alexsander",
       "number": "5",
       "position": "Midfielder",
-      "injured": false
+      "injured": true
     },
     {
       "name": "Fred",
@@ -181,12 +193,6 @@
       "injured": false
     },
     {
-      "name": "Reinier",
-      "number": "19",
-      "position": "Midfielder",
-      "injured": false
-    },
-    {
       "name": "A. Franco",
       "number": "21",
       "position": "Midfielder",
@@ -211,6 +217,12 @@
       "injured": false
     },
     {
+      "name": "I. Toledo",
+      "number": "35",
+      "position": "Midfielder",
+      "injured": false
+    },
+    {
       "name": "Índio",
       "number": "38",
       "position": "Midfielder",
@@ -231,6 +243,12 @@
     {
       "name": "Gutte",
       "number": "48",
+      "position": "Midfielder",
+      "injured": false
+    },
+    {
+      "name": "E. Soares",
+      "number": "58",
       "position": "Midfielder",
       "injured": false
     }
