@@ -64,7 +64,13 @@
       "name": "V. F. C. Teixeira",
       "number": "40",
       "position": "Defender",
-      "injured": true
+      "injured": false
+    },
+    {
+      "name": "Wanderson",
+      "number": "42",
+      "position": "Defender",
+      "injured": false
     },
     {
       "name": "L. S. Silva",
@@ -231,6 +237,18 @@
     {
       "name": "M. Cissé",
       "number": "39",
+      "position": "Midfielder",
+      "injured": false
+    },
+    {
+      "name": "V. Almeida",
+      "number": "45",
+      "position": "Midfielder",
+      "injured": false
+    },
+    {
+      "name": "V. R. Teixeira",
+      "number": "45",
       "position": "Midfielder",
       "injured": false
     },
