@@ -4,7 +4,7 @@
       "name": "Natanael",
       "number": "2",
       "position": "Defender",
-      "injured": true
+      "injured": false
     },
     {
       "name": "L. Duarte",
@@ -22,13 +22,13 @@
       "name": "R. Lodi",
       "number": "6",
       "position": "Defender",
-      "injured": true
+      "injured": false
     },
     {
       "name": "Lyanco",
       "number": "13",
       "position": "Defender",
-      "injured": true
+      "injured": false
     },
     {
       "name": "V. Hugo",
@@ -172,7 +172,7 @@
       "name": "Maycon",
       "number": "8",
       "position": "Midfielder",
-      "injured": true
+      "injured": false
     },
     {
       "name": "G. Scarpa",
@@ -184,7 +184,7 @@
       "name": "Bernard",
       "number": "11",
       "position": "Midfielder",
-      "injured": true
+      "injured": false
     },
     {
       "name": "K. Castaño",
@@ -196,7 +196,7 @@
       "name": "I. Gomes",
       "number": "17",
       "position": "Midfielder",
-      "injured": true
+      "injured": false
     },
     {
       "name": "A. Franco",
