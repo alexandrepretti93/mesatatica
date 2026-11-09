@@ -40,7 +40,7 @@
       "name": "Á. Preciado",
       "number": "23",
       "position": "Defender",
-      "injured": false
+      "injured": true
     },
     {
       "name": "L. Gustavo",
@@ -58,13 +58,13 @@
       "name": "K. P. Resende",
       "number": "36",
       "position": "Defender",
-      "injured": false
+      "injured": true
     },
     {
       "name": "V. F. C. Teixeira",
       "number": "40",
       "position": "Defender",
-      "injured": false
+      "injured": true
     },
     {
       "name": "Wanderson",
@@ -160,7 +160,7 @@
       "name": "Alexsander",
       "number": "5",
       "position": "Midfielder",
-      "injured": true
+      "injured": false
     },
     {
       "name": "Fred",
