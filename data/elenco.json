@@ -100,7 +100,7 @@
       "name": "T. Borbas",
       "number": "18",
       "position": "Forward",
-      "injured": false
+      "injured": true
     },
     {
       "name": "Reinier",
@@ -112,7 +112,7 @@
       "name": "A. Minda",
       "number": "27",
       "position": "Forward",
-      "injured": false
+      "injured": true
     },
     {
       "name": "C. C. Soares",
@@ -202,7 +202,7 @@
       "name": "A. Franco",
       "number": "21",
       "position": "Midfielder",
-      "injured": false
+      "injured": true
     },
     {
       "name": "T. Pérez",
