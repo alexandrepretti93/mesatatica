@@ -16,7 +16,7 @@
       "name": "Ruan",
       "number": "4",
       "position": "Defender",
-      "injured": true
+      "injured": false
     },
     {
       "name": "R. Lodi",
@@ -94,7 +94,7 @@
       "name": "M. Cassierra",
       "number": "9",
       "position": "Forward",
-      "injured": true
+      "injured": false
     },
     {
       "name": "T. Borbas",
