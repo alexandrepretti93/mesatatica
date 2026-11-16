@@ -28,7 +28,7 @@
       "name": "Lyanco",
       "number": "13",
       "position": "Defender",
-      "injured": true
+      "injured": false
     },
     {
       "name": "V. Hugo",
@@ -58,13 +58,13 @@
       "name": "K. P. Resende",
       "number": "36",
       "position": "Defender",
-      "injured": true
+      "injured": false
     },
     {
       "name": "V. F. C. Teixeira",
       "number": "40",
       "position": "Defender",
-      "injured": true
+      "injured": false
     },
     {
       "name": "Wanderson",
@@ -220,7 +220,7 @@
       "name": "V. Hugo",
       "number": "30",
       "position": "Midfielder",
-      "injured": true
+      "injured": false
     },
     {
       "name": "I. Toledo",
