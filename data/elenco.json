@@ -43,12 +43,6 @@
       "injured": false
     },
     {
-      "name": "L. Gustavo",
-      "number": "32",
-      "position": "Defender",
-      "injured": false
-    },
-    {
       "name": "Samuel",
       "number": "34",
       "position": "Defender",
@@ -69,12 +63,6 @@
     {
       "name": "Wanderson",
       "number": "42",
-      "position": "Defender",
-      "injured": false
-    },
-    {
-      "name": "L. S. Silva",
-      "number": "50",
       "position": "Defender",
       "injured": false
     },
