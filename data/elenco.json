@@ -58,7 +58,7 @@
       "name": "V. F. C. Teixeira",
       "number": "40",
       "position": "Defender",
-      "injured": false
+      "injured": true
     },
     {
       "name": "Wanderson",
@@ -88,7 +88,7 @@
       "name": "T. Borbas",
       "number": "18",
       "position": "Forward",
-      "injured": true
+      "injured": false
     },
     {
       "name": "Reinier",
